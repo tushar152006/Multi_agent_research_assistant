@@ -1,3 +1,4 @@
+import asyncio
 import re
 
 import httpx
@@ -10,6 +11,7 @@ from backend.services.semantic_scholar_service import (
     SemanticScholarPaper,
     SemanticScholarService,
 )
+from backend.services.web_scraper_service import WebScraperService
 
 
 class ResearchAgent(BaseAgent[ResearchRequest, list[PaperSummary]]):
@@ -21,28 +23,34 @@ class ResearchAgent(BaseAgent[ResearchRequest, list[PaperSummary]]):
         self,
         arxiv_service: ArxivService | None = None,
         semantic_scholar_service: SemanticScholarService | None = None,
+        web_scraper_service: WebScraperService | None = None,
     ) -> None:
         settings = get_settings()
         self.arxiv_service = arxiv_service or ArxivService()
         self.semantic_scholar_service = semantic_scholar_service or SemanticScholarService(
             api_key=settings.semantic_scholar_api_key
         )
+        self.web_scraper_service = web_scraper_service or WebScraperService()
 
     async def run(self, payload: ResearchRequest) -> list[PaperSummary]:
         normalized_query = payload.query.strip()
-        arxiv_papers = await self._safe_search_arxiv(
-            normalized_query,
-            payload.max_results,
-        )
-        semantic_papers = await self._safe_search_semantic_scholar(
-            normalized_query,
-            payload.max_results,
+        
+        # Parallel fetch from multiple sources
+        arxiv_papers_task = self._safe_search_arxiv(normalized_query, payload.max_results)
+        semantic_papers_task = self._safe_search_semantic_scholar(normalized_query, payload.max_results)
+        web_papers_task = self._search_web(normalized_query, 3) # Always grab top 3 web results
+        
+        arxiv_papers, semantic_papers, web_papers = await asyncio.gather(
+            arxiv_papers_task, 
+            semantic_papers_task,
+            web_papers_task
         )
 
         merged_papers = self._merge_and_rank_papers(
             query=normalized_query,
             arxiv_papers=arxiv_papers,
             semantic_papers=semantic_papers,
+            web_papers=web_papers,
             max_results=payload.max_results,
         )
 
@@ -50,6 +58,24 @@ class ResearchAgent(BaseAgent[ResearchRequest, list[PaperSummary]]):
             return merged_papers
 
         return self._fallback_papers(normalized_query, payload.max_results)
+
+    async def _search_web(self, query: str, max_results: int) -> list[PaperSummary]:
+        """Search the web and convert results to PaperSummary format."""
+        try:
+            results = await self.web_scraper_service.search_and_scrape(query, max_results)
+            summaries = []
+            for i, res in enumerate(results, start=1):
+                summaries.append(PaperSummary(
+                    title=res.title,
+                    authors=["Web Article"],
+                    source="Web",
+                    external_id=f"web:{res.url}",
+                    abstract=res.content,
+                    relevance_score=self._score_relevance(query, res.title, res.content, i)
+                ))
+            return summaries
+        except Exception:
+            return []
 
     async def _safe_search_arxiv(
         self,
@@ -79,6 +105,7 @@ class ResearchAgent(BaseAgent[ResearchRequest, list[PaperSummary]]):
         query: str,
         arxiv_papers: list[ArxivPaper],
         semantic_papers: list[SemanticScholarPaper],
+        web_papers: list[PaperSummary],
         max_results: int,
     ) -> list[PaperSummary]:
         candidates: list[PaperSummary] = []
@@ -86,6 +113,9 @@ class ResearchAgent(BaseAgent[ResearchRequest, list[PaperSummary]]):
             candidates.append(self._to_arxiv_summary(paper, query, rank))
         for rank, paper in enumerate(semantic_papers, start=1):
             candidates.append(self._to_semantic_scholar_summary(paper, query, rank))
+        
+        # Add web papers
+        candidates.extend(web_papers)
 
         deduplicated = self._deduplicate_papers(candidates)
         deduplicated.sort(
