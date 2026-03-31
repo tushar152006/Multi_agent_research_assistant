@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from backend.api.routes.health import router as health_router
 from backend.api.routes.research import router as research_router
+from backend.api.routes.websocket import router as ws_router
 from backend.core.config import get_settings
 
 
@@ -17,7 +18,7 @@ def create_app() -> FastAPI:
 
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=settings.allowed_origins,
+        allow_origins=settings.cors_origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -25,6 +26,7 @@ def create_app() -> FastAPI:
 
     app.include_router(health_router)
     app.include_router(research_router, prefix=settings.api_v1_prefix)
+    app.include_router(ws_router)
 
     return app
 

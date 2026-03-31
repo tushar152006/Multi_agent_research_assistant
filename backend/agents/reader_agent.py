@@ -3,6 +3,8 @@ from __future__ import annotations
 import re
 
 from backend.agents.base_agent import BaseAgent
+from backend.core.config import get_settings
+from backend.core.llm import LLMService, build_llm_service
 from backend.models.schemas import (
     MethodologySummary,
     ReaderRequest,
@@ -13,26 +15,65 @@ from backend.services.pdf_service import PdfService
 
 
 class ReaderAgent(BaseAgent[ReaderRequest, ReaderResponse]):
-    """Extract structured paper insights from normalized document text."""
+    """Hybrid reader: heuristic extraction + optional Ollama problem enrichment."""
 
     name = "reader_agent"
 
-    def __init__(self, pdf_service: PdfService | None = None) -> None:
+    def __init__(
+        self,
+        pdf_service: PdfService | None = None,
+        llm_service: LLMService | None = None,
+    ) -> None:
+        settings = get_settings()
+        self._llm_provider = settings.llm_provider
         self.pdf_service = pdf_service or PdfService()
+        self.llm_service = llm_service or build_llm_service(
+            provider=settings.llm_provider,
+            ollama_base_url=settings.ollama_base_url,
+            ollama_model=settings.ollama_model,
+        )
 
     async def run(self, payload: ReaderRequest) -> ReaderResponse:
         normalized_text = self.pdf_service.normalize_text(payload.content)
         sections = self._extract_sections(normalized_text)
 
+        problem = self._extract_problem(sections, normalized_text)
+
+        # Ollama enrichment: generate a cleaner problem statement
+        if self._llm_provider == "ollama":
+            enriched = await self._enrich_problem(payload, normalized_text, problem)
+            if enriched:
+                problem = enriched
+
         return ReaderResponse(
             title=payload.title,
-            problem=self._extract_problem(sections, normalized_text),
+            problem=problem,
             methodology=self._extract_methodology(sections, normalized_text),
             results=self._extract_results(sections, normalized_text),
             limitations=self._extract_limitations(sections),
             future_work=self._extract_future_work(sections),
             extracted_sections=sections,
         )
+
+    async def _enrich_problem(
+        self,
+        payload: ReaderRequest,
+        text: str,
+        heuristic_problem: str,
+    ) -> str | None:
+        snippet = text[:1200]
+        prompt = (
+            f"Paper title: {payload.title}\n"
+            f"Abstract/text excerpt:\n{snippet}\n"
+            f"Heuristic problem statement: {heuristic_problem}\n"
+            "In 1-2 concise sentences, state the core research problem this paper addresses."
+        )
+        try:
+            result = await self.llm_service.generate(prompt)
+            result = result.strip()
+            return result if len(result) > 20 else None
+        except Exception:
+            return None
 
     def _extract_sections(self, text: str) -> dict[str, str]:
         section_names = [

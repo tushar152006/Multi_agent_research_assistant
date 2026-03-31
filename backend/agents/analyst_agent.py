@@ -4,6 +4,8 @@ import re
 from collections import Counter, defaultdict
 
 from backend.agents.base_agent import BaseAgent
+from backend.core.config import get_settings
+from backend.core.llm import LLMService, build_llm_service
 from backend.models.schemas import (
     AnalystRequest,
     AnalystResponse,
@@ -14,22 +16,68 @@ from backend.models.schemas import (
 
 
 class AnalystAgent(BaseAgent[AnalystRequest, AnalystResponse]):
-    """Free-first synthesis agent built with deterministic heuristics."""
+    """Hybrid synthesis agent: heuristic extraction + optional Ollama narrative."""
 
     name = "analyst_agent"
+
+    def __init__(self, llm_service: LLMService | None = None) -> None:
+        settings = get_settings()
+        self._llm_provider = settings.llm_provider
+        self.llm_service = llm_service or build_llm_service(
+            provider=settings.llm_provider,
+            ollama_base_url=settings.ollama_base_url,
+            ollama_model=settings.ollama_model,
+        )
 
     async def run(self, payload: AnalystRequest) -> AnalystResponse:
         papers = payload.papers
 
+        themes = self._extract_themes(papers)
+        innovations = self._extract_innovations(papers)
+        consensus = self._extract_consensus(papers)
+        conflicts = self._extract_conflicts(papers)
+        gaps = self._extract_gaps(papers)
+        applications = self._extract_applications(papers)
+
+        # Optionally enrich themes with an Ollama-generated synthesis
+        if self._llm_provider == "ollama" and themes:
+            llm_themes = await self._generate_llm_themes(payload, themes, gaps)
+            if llm_themes:
+                themes = llm_themes
+
         return AnalystResponse(
             query=payload.query,
-            themes=self._extract_themes(papers),
-            innovations=self._extract_innovations(papers),
-            consensus=self._extract_consensus(papers),
-            conflicts=self._extract_conflicts(papers),
-            gaps=self._extract_gaps(papers),
-            practical_applications=self._extract_applications(papers),
+            themes=themes,
+            innovations=innovations,
+            consensus=consensus,
+            conflicts=conflicts,
+            gaps=gaps,
+            practical_applications=applications,
         )
+
+    async def _generate_llm_themes(
+        self,
+        payload: AnalystRequest,
+        heuristic_themes: list[str],
+        gaps: list[str],
+    ) -> list[str] | None:
+        paper_titles = [p.title for p in payload.papers[:5]]
+        prompt = (
+            "You are a research analyst synthesizing insights from academic papers.\n"
+            f"Research query: {payload.query}\n"
+            f"Papers analyzed: {paper_titles}\n"
+            f"Initial themes detected: {heuristic_themes}\n"
+            f"Research gaps identified: {gaps[:3]}\n"
+            "Provide 3-5 refined, concise research themes (one per line, no numbering) "
+            "that best capture the findings across these papers."
+        )
+        try:
+            raw = await self.llm_service.generate(prompt)
+            lines = [line.strip() for line in raw.splitlines() if line.strip()]
+            refined = [l for l in lines if 10 <= len(l) <= 200][:5]
+            return refined if refined else None
+        except Exception:
+            return None
 
     def _extract_themes(self, papers: list[ReaderResponse]) -> list[str]:
         phrase_counter: Counter[str] = Counter()

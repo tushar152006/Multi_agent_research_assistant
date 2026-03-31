@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from backend.agents.base_agent import BaseAgent
+from backend.core.config import get_settings
+from backend.core.llm import LLMService, build_llm_service
 from backend.models.schemas import (
     ArchitecturePlan,
     BuilderRequest,
@@ -12,13 +14,30 @@ from backend.models.schemas import (
 
 
 class BuilderAgent(BaseAgent[BuilderRequest, BuilderResponse]):
-    """Free-first implementation planner built from analysis and critique."""
+    """Hybrid implementation planner: heuristics + optional Ollama narrative enrichment."""
 
     name = "builder_agent"
+
+    def __init__(self, llm_service: LLMService | None = None) -> None:
+        settings = get_settings()
+        self._llm_provider = settings.llm_provider
+        self.llm_service = llm_service or build_llm_service(
+            provider=settings.llm_provider,
+            ollama_base_url=settings.ollama_base_url,
+            ollama_model=settings.ollama_model,
+        )
 
     async def run(self, payload: BuilderRequest) -> BuilderResponse:
         project_idea = self._build_project_idea(payload)
         value_proposition = self._build_value_proposition(payload)
+
+        # Enrich the narrative fields with Ollama when available
+        if self._llm_provider == "ollama":
+            llm_idea, llm_value = await self._enrich_narrative(payload)
+            if llm_idea:
+                project_idea = llm_idea
+            if llm_value:
+                value_proposition = llm_value
 
         return BuilderResponse(
             query=payload.query,
@@ -29,6 +48,30 @@ class BuilderAgent(BaseAgent[BuilderRequest, BuilderResponse]):
             mvp_roadmap=self._build_roadmap(payload),
             challenges=self._build_challenges(payload),
         )
+
+    async def _enrich_narrative(
+        self, payload: BuilderRequest
+    ) -> tuple[str | None, str | None]:
+        themes = payload.analysis.themes[:3]
+        gaps = payload.analysis.gaps[:2]
+        critique_issues = [c.issue for c in payload.critique.critiques[:2]]
+        prompt = (
+            f"Research query: {payload.query}\n"
+            f"Key themes: {themes}\n"
+            f"Research gaps: {gaps}\n"
+            f"Known critique issues: {critique_issues}\n"
+            "Based on this research, provide:\n"
+            "LINE 1: A one-sentence project idea for a software product that addresses this research.\n"
+            "LINE 2: A one-sentence value proposition explaining who benefits and why."
+        )
+        try:
+            raw = await self.llm_service.generate(prompt)
+            lines = [l.strip() for l in raw.splitlines() if l.strip()]
+            idea = lines[0] if len(lines) > 0 and len(lines[0]) > 20 else None
+            value = lines[1] if len(lines) > 1 and len(lines[1]) > 20 else None
+            return idea, value
+        except Exception:
+            return None, None
 
     def _build_project_idea(self, payload: BuilderRequest) -> str:
         if payload.analysis.practical_applications:

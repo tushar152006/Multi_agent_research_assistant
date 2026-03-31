@@ -36,10 +36,10 @@ export function CardContent({ children, className = '', ...props }: CardProps) {
   );
 }
 
-export function Badge({ children, variant = 'default', className = '' }: { children: React.ReactNode, variant?: 'default' | 'accent', className?: string }) {
+export function Badge({ children, variant = 'default', className = '', ...props }: { children: React.ReactNode, variant?: 'default' | 'accent', className?: string } & React.HTMLAttributes<HTMLSpanElement>) {
   const variantClass = variant === 'accent' ? 'badge-accent' : '';
   return (
-    <span className={`badge ${variantClass} ${className}`}>
+    <span className={`badge ${variantClass} ${className}`} {...props}>
       {children}
     </span>
   );
