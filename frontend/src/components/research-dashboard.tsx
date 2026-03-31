@@ -31,6 +31,12 @@ const PIPELINE_AGENTS = [
   "builder_agent",
 ];
 
+const SOURCE_COLORS: Record<string, string> = {
+  "arXiv": "var(--accent)",
+  "Semantic Scholar": "var(--default)",
+  "Web": "#10b981", // Emerald green for live web
+};
+
 function makeInitialAgents(): AgentEvent[] {
   return PIPELINE_AGENTS.map((id) => ({
     agent: id,
@@ -245,7 +251,7 @@ function ResultPanel({ report }: { report: ResearchResponse }) {
                   <Badge variant="accent" style={{ flexShrink: 0 }}>{paper.relevance_score}</Badge>
                 </div>
                 <p style={{ fontSize: "0.85rem", color: "var(--muted)", marginTop: 4 }}>
-                  {paper.authors.join(", ")} · {paper.source}
+                  {paper.authors.join(", ")} · <span style={{ color: SOURCE_COLORS[paper.source] || "var(--muted)", fontWeight: 600 }}>{paper.source}</span>
                 </p>
                 <p style={{ fontSize: "0.9rem", marginTop: 10, lineHeight: 1.6, color: "var(--text)" }}>
                   {paper.abstract}
