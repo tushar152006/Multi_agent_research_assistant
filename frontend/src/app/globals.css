@@ -279,3 +279,107 @@ textarea.input-field {
 .mt-4 { margin-top: 16px; }
 .mb-4 { margin-bottom: 16px; }
 .mt-8 { margin-top: 32px; }
+
+/* ── Typing cursor animation ── */
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+
+.typing-cursor::after {
+  content: '▋';
+  display: inline-block;
+  margin-left: 2px;
+  animation: blink 1s step-end infinite;
+  color: var(--accent);
+}
+
+/* ── Spin animation (used in loading spinner) ── */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+.animate-spin {
+  animation: spin 1.2s linear infinite;
+}
+
+/* ── Fade-in for tab content panels ── */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* ── Progress bar ── */
+.progress-bar-container {
+  width: 100%;
+  height: 4px;
+  background: var(--surface-strong);
+  border-radius: 999px;
+  overflow: hidden;
+  margin: 8px 0;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-secondary));
+  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ── Export & Delete buttons ── */
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: var(--radius-md);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--surface-strong);
+  color: var(--muted);
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.btn-icon:hover {
+  color: var(--text);
+  border-color: var(--muted);
+  background: rgba(255,255,255,0.06);
+}
+
+.btn-icon-danger:hover {
+  color: var(--danger);
+  border-color: rgba(239,68,68,0.4);
+  background: rgba(239,68,68,0.08);
+}
+
+.btn-icon-success {
+  color: #34d399;
+  border-color: rgba(52,211,153,0.3);
+}
+
+.btn-icon-success:hover {
+  background: rgba(52,211,153,0.1);
+}
+
+/* ── Innovations card grid ── */
+.innovation-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+}
+
+@media (min-width: 900px) {
+  .innovation-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+

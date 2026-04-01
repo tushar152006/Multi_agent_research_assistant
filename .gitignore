@@ -1,6 +1,8 @@
 # Environments
 .env
+.env.local
 .venv
+backend/data/
 env/
 venv/
 ENV/

@@ -140,3 +140,78 @@ class Orchestrator:
             execution_trace=execution_trace,
         )
         return await self.session_store.save_report(report)
+
+    async def process_document(self, title: str, content: str) -> ResearchResponse:
+        """Process a specifically provided document bypassing discovery."""
+        execution_trace = [
+            AgentExecution(
+                agent_name="document_loader",
+                status="completed",
+                detail=f"Inbound document '{title}' accepted for analysis.",
+            )
+        ]
+
+        # 1. Reader Agent
+        reader_output = await self.reader_agent.run(
+            ReaderRequest(title=title, source="Upload", content=content)
+        )
+        reader_outputs = [reader_output]
+        execution_trace.append(
+            AgentExecution(
+                agent_name=self.reader_agent.name,
+                status="completed",
+                detail="Extracted structured findings from the uploaded document.",
+            )
+        )
+
+        # 2. Analyst Agent
+        analysis = await self.analyst_agent.run(
+            AnalystRequest(query=f"Analysis of {title}", papers=reader_outputs)
+        )
+        execution_trace.append(
+            AgentExecution(
+                agent_name=self.analyst_agent.name,
+                status="completed",
+                detail="Synthesized innovations and key themes from the document.",
+            )
+        )
+
+        # 3. Critic Agent
+        critique = await self.critic_agent.run(
+            CriticRequest(query=title, analysis=analysis)
+        )
+        execution_trace.append(
+            AgentExecution(
+                agent_name=self.critic_agent.name,
+                status="completed",
+                detail="Critiqued the document's methodology and evidence.",
+            )
+        )
+
+        # 4. Builder Agent
+        implementation_plan = await self.builder_agent.run(
+            BuilderRequest(query=title, analysis=analysis, critique=critique)
+        )
+        execution_trace.append(
+            AgentExecution(
+                agent_name=self.builder_agent.name,
+                status="completed",
+                detail="Generated a project roadmap based on the document's insights.",
+            )
+        )
+
+        session_id = str(uuid.uuid4())
+        report = ResearchResponse(
+            query=f"Document: {title}",
+            query_type="deep_analysis",
+            summary=f"Deep analysis of uploaded document '{title}' completed.",
+            papers=[],  # Discovery skipped
+            reader_outputs=reader_outputs,
+            analysis=analysis,
+            critique=critique,
+            implementation_plan=implementation_plan,
+            session_id=session_id,
+            execution_trace=execution_trace,
+        )
+        return await self.session_store.save_report(report)
+

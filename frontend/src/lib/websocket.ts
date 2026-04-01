@@ -2,13 +2,14 @@
  * WebSocket client for the real-time research pipeline.
  *
  * The server emits a stream of JSON frames:
- *   { event: "agent_start", data: { agent, message } }
- *   { event: "agent_done",  data: { agent, detail  } }
- *   { event: "done",        data: ResearchResponse  }
- *   { event: "error",       data: { message }       }
+ *   { event: "agent_start",     data: { agent, message }           }
+ *   { event: "agent_done",      data: { agent, detail  }           }
+ *   { event: "paper_progress",  data: { index, total, title }      }
+ *   { event: "done",            data: ResearchResponse             }
+ *   { event: "error",           data: { message }                  }
  */
 
-import type { ResearchResponse } from "@/lib/types";
+import type { PaperProgress, ResearchResponse } from "@/lib/types";
 
 const WS_BASE_URL =
   process.env.NEXT_PUBLIC_WS_BASE_URL ?? "ws://127.0.0.1:8000";
@@ -27,6 +28,7 @@ export type AgentEvent = {
 export type PipelineCallbacks = {
   onAgentStart: (agent: string, message: string) => void;
   onAgentDone: (agent: string, detail: string) => void;
+  onPaperProgress?: (progress: PaperProgress) => void;
   onDone: (report: ResearchResponse) => void;
   onError: (message: string) => void;
 };
@@ -78,6 +80,12 @@ export function runResearchWebSocket(
           frame.data.agent as string,
           frame.data.detail as string,
         );
+      } else if (frame.event === "paper_progress") {
+        callbacks.onPaperProgress?.({
+          index: frame.data.index as number,
+          total: frame.data.total as number,
+          title: frame.data.title as string,
+        });
       } else if (frame.event === "done") {
         callbacks.onDone(frame.data as unknown as ResearchResponse);
       } else if (frame.event === "error") {
@@ -105,3 +113,4 @@ export function runResearchWebSocket(
     }
   };
 }
+

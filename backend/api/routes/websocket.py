@@ -14,6 +14,7 @@ from backend.models.schemas import (
     AnalystRequest,
     BuilderRequest,
     CriticRequest,
+    PaperProgress,
     ReaderRequest,
     ResearchRequest,
     ResearchResponse,
@@ -83,7 +84,10 @@ async def research_websocket(ws: WebSocket) -> None:
         # ── Reader Agent ──────────────────────────────────────────────────
         await _send(ws, "agent_start", {"agent": "reader_agent", "message": "Extracting structured findings…"})
         reader_outputs = []
-        for paper in papers:
+        for idx, paper in enumerate(papers):
+            # Emit per-paper progress so the UI can show reading progress
+            progress = PaperProgress(index=idx + 1, total=len(papers), title=paper.title)
+            await _send(ws, "paper_progress", {"index": progress.index, "total": progress.total, "title": progress.title})
             reader_output = await reader_agent.run(
                 ReaderRequest(
                     title=paper.title,

@@ -20,10 +20,12 @@ class Settings(BaseSettings):
         return self.allowed_origins
 
     semantic_scholar_api_key: str | None = None
-    llm_provider: str = "heuristic"
+    llm_provider: str = "ollama"
     ollama_base_url: str = "http://localhost:11434"
-    ollama_model: str = "llama3.1:8b"
+    ollama_model: str = "llama3.1:latest"
     local_storage_path: str = "backend/data"
+    max_results_limit: int = 20
+    session_ttl_days: int = 30
 
     model_config = SettingsConfigDict(
         env_file=".env",

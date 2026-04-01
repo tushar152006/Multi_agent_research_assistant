@@ -171,3 +171,23 @@ class SessionSummary(BaseModel):
 
 class SessionListResponse(BaseModel):
     sessions: list[SessionSummary] = Field(default_factory=list)
+
+
+class DeleteResponse(BaseModel):
+    session_id: str
+    deleted: bool
+
+
+class UploadTextRequest(BaseModel):
+    """Accept raw text or abstract for on-demand analysis."""
+
+    title: str = Field(default="Uploaded Document")
+    content: str = Field(min_length=20, max_length=50_000)
+
+
+class PaperProgress(BaseModel):
+    """Mid-stream progress event emitted during the reader agent loop."""
+
+    index: int
+    total: int
+    title: str

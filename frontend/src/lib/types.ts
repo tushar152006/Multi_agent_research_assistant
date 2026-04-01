@@ -43,20 +43,24 @@ export type ReaderResponse = {
   extracted_sections: Record<string, string>;
 };
 
+export type InnovationSummary = {
+  paper_title: string;
+  innovation: string;
+  impact: string;
+};
+
+export type ConflictSummary = {
+  topic: string;
+  description: string;
+  papers: string[];
+};
+
 export type AnalystResponse = {
   query: string;
   themes: string[];
-  innovations: Array<{
-    paper_title: string;
-    innovation: string;
-    impact: string;
-  }>;
+  innovations: InnovationSummary[];
   consensus: string[];
-  conflicts: Array<{
-    topic: string;
-    description: string;
-    papers: string[];
-  }>;
+  conflicts: ConflictSummary[];
   gaps: string[];
   practical_applications: string[];
 };
@@ -117,3 +121,15 @@ export type ResearchResponse = {
 export type SessionListResponse = {
   sessions: SessionSummary[];
 };
+
+export type DeleteResponse = {
+  session_id: string;
+  deleted: boolean;
+};
+
+export type PaperProgress = {
+  index: number;
+  total: number;
+  title: string;
+};
+
