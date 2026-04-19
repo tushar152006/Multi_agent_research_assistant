@@ -1,100 +1,180 @@
 # 🧠 Multi-Agent Autonomous Research Assistant
 
-![Next.js](https://img.shields.io/badge/Next.js-black?style=for-the-badge&logo=next.js&logoColor=white) 
-![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi) 
+![CI](https://github.com/tushar152006/Multi_agent_research_assistant/actions/workflows/ci.yml/badge.svg)
+![Next.js](https://img.shields.io/badge/Next.js-black?style=for-the-badge&logo=next.js&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi)
 ![Ollama](https://img.shields.io/badge/Ollama-black?style=for-the-badge&logo=ollama&logoColor=white)
 ![Vercel](https://img.shields.io/badge/Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white)
 ![Railway](https://img.shields.io/badge/Railway-131415?style=for-the-badge&logo=railway&logoColor=white)
 
-An AI-powered research ecosystem that simulates a complete human research team. Using 5 specialized, autonomous agents, this system automatically discovers, analyzes, critiques, and synthesizes academic literature into actionable insights—all running for **free and fully private** using local LLMs (via Ollama) bridged to cloud deployments.
+An AI-powered research ecosystem that simulates a complete human research team. Using **5 specialized, autonomous agents**, this system automatically discovers, analyzes, critiques, and synthesizes academic literature into actionable insights — all running **free and fully private** using local LLMs (via Ollama) bridged to cloud deployments.
 
 ---
 
 ## ⚡ Key Features
 
-- **🌐 Real-Time Agent Dashboard:** Watch the AI reasoning live via WebSockets on a beautiful, glassmorphic Next.js UI.
-- **🛡️ 100% Free LLM Execution:** Leverages your personal computer's hardware using Ollama (Llama-3), allowing massive generation without API fees.
-- **🧩 5 Specialized Agent Personas:** A cascading pipeline of intelligence where agents literally debate and refine each other's work.
-- **🚀 Cloud-Local Bridge:** The Frontend is globally distributed on Vercel, the Backend runs on Railway, and an Ngrok tunnel routes heavy LLM tasks securely back to your living room.
+- **🌐 Real-Time Agent Dashboard:** Watch the AI reasoning live via WebSockets on a glassmorphic Next.js UI.
+- **🛡️ 100% Free LLM Execution:** Leverages your personal computer's hardware using Ollama (Llama 3.1), allowing massive generation without API fees.
+- **🧩 5 Specialized Agent Personas:** A cascading pipeline where agents literally debate and refine each other's work.
+- **🚀 Cloud-Local Bridge:** Frontend on Vercel, Backend on Railway, with an Ngrok tunnel routing heavy LLM tasks to your local machine.
+- **📚 Multi-Source Discovery:** Simultaneously queries arXiv, Semantic Scholar, and the live web — with deduplication and relevance scoring.
+- **💾 Session Persistence:** Save, reload, and export research sessions as JSON.
 
 ---
 
 ## 🤖 The Agent Pipeline
 
-1. **The Research Agent:** Generates intelligent search queries and discovers relevant academic papers.
-2. **The Reader Agent:** Extracts methodologies, core findings, limitations, and statistics from the raw text.
-3. **The Analyst Agent:** Synthesizes multiple papers to find trends, gaps, and consensus.
-4. **The Critic Agent:** Plays "Devil's Advocate" by rigorously challenging the Analyst's assumptions.
-5. **The Builder Agent:** Takes all the research and creates a concrete, actionable project or startup implementation plan.
+```
+User Query
+    │
+    ▼
+┌─────────────────────┐
+│  Research Agent      │  ← Discovers papers from arXiv + Semantic Scholar + Web
+└─────────┬───────────┘
+          │
+          ▼
+┌─────────────────────┐
+│  Reader Agent        │  ← Extracts methodology, findings, limitations from each paper
+└─────────┬───────────┘
+          │
+          ▼
+┌─────────────────────┐
+│  Analyst Agent       │  ← Synthesises themes, consensus, conflicts, and gaps
+└─────────┬───────────┘
+          │
+          ▼
+┌─────────────────────┐
+│  Critic Agent        │  ← Challenges weak evidence and assumptions (via LLM)
+└─────────┬───────────┘
+          │
+          ▼
+┌─────────────────────┐
+│  Builder Agent       │  ← Generates an actionable project/startup implementation plan
+└─────────────────────┘
+```
 
 ---
 
-## 🏗️ Architecture & Deployment Overview
+## 🏗️ Architecture & Deployment
 
-Because cloud GPU hosting is extremely expensive, this project utilizes a **Hybrid Deployment Strategy**:
+Because cloud GPU hosting is extremely expensive, this project uses a **Hybrid Deployment Strategy**:
 
-*   **Frontend (Vercel):** The Next.js React application is hosted publicly on Vercel.
-*   **Backend (Railway):** The Python FastAPI web server acts as the central router and is deployed 24/7 on Railway to manage WebSocket connections without timing out.
-*   **LLM Brain (Local PC):** The actual AI intelligence runs entirely locally using `Ollama: Llama-3`.
-*   **The Bridge (Ngrok):** We utilize `ngrok` to create a secure tunnel from your local PC to the internet. The Railway backend automatically sends all generative prompts securely through this tunnel directly to your personal hardware.
+| Layer | Technology | Where |
+|---|---|---|
+| Frontend | Next.js + TypeScript | Vercel (global CDN) |
+| Backend API | FastAPI + WebSockets | Railway (24/7) |
+| LLM Brain | Ollama (Llama 3.1:8b) | Your local PC |
+| Tunnel | Ngrok | Bridges local → cloud |
 
 ---
 
 ## 💻 Local Development Setup
 
-Want to run everything locally on your machine without deploying?
-
-### 1. Prerequisites
+### Prerequisites
 - Python 3.10+
 - Node.js 18+
-- [Ollama](https://ollama.com/) (with `llama3.1:8b` installed: run `ollama run llama3.1:8b`)
+- [Ollama](https://ollama.com/) with `llama3.1:8b` installed
 
-### 2. Start the Backend
 ```bash
-cd backend
-python -m venv .venv
-# Activate the environment ( Windows: .venv\Scripts\activate | Mac/Linux: source .venv/bin/activate )
-pip install -r requirements.txt
-
-# Start FastAPI
-uvicorn api.main:app --reload --port 8000
+ollama pull llama3.1:8b
 ```
 
-### 3. Start the Frontend
+### 1. Start the Backend
+```bash
+# Create and activate virtual environment
+python -m venv .venv
+.venv\Scripts\activate       # Windows
+# source .venv/bin/activate  # Mac / Linux
+
+# Install dependencies
+pip install -r backend/requirements.txt
+
+# Copy and fill in env vars
+cp .env.example .env
+
+# Start FastAPI server
+uvicorn backend.api.main:app --reload --port 8000
+```
+
+### 2. Start the Frontend
 ```bash
 cd frontend
+cp .env.example .env.local    # Set NEXT_PUBLIC_API_BASE_URL & NEXT_PUBLIC_WS_BASE_URL
 npm install
 npm run dev
 ```
 
-*Your complete app is now running at `http://localhost:3000`!*
+Open [http://localhost:3000](http://localhost:3000) — your full app is running! 🎉
 
 ---
 
-## 🌍 Launching to the World (Cloud Deployment)
+## 🌍 Cloud Deployment
 
 ### 1. Start Your Local Ngrok Tunnel
-On the PC running Ollama, open a terminal and run:
 ```bash
 ngrok http 11434 --host-header="localhost:11434"
 ```
-*Copy the `https://xxxx.ngrok.app` Forwarding URL.*
+Copy the `https://xxxx.ngrok.app` URL.
 
 ### 2. Deploy Backend to Railway
-- Connect your GitHub repo to a new Railway project.
-- It will automatically use the `railway.toml` to build the Python environment.
-- Under Variables, add the following:
-  - `LLM_PROVIDER`: `ollama`
-  - `OLLAMA_MODEL`: `llama3.1:8b`
-  - `OLLAMA_BASE_URL`: *(Paste your exact Ngrok URL here)*
-  - `ALLOWED_ORIGINS`: *(Paste your frontend Vercel URL later)*
+1. Push this repo to GitHub and connect to [Railway](https://railway.app).
+2. Railway auto-detects `railway.toml` for build config.
+3. Add environment variables:
+
+| Variable | Value |
+|---|---|
+| `LLM_PROVIDER` | `ollama` |
+| `OLLAMA_MODEL` | `llama3.1:8b` |
+| `OLLAMA_BASE_URL` | Your Ngrok URL |
+| `ALLOWED_ORIGINS` | Your Vercel frontend URL |
 
 ### 3. Deploy Frontend to Vercel
-- Connect your repo to Vercel.
-- **Important:** Go to Settings > General > "Root Directory" and set it to `frontend` so Vercel can find Next.js!
-- Add the Environment Variables:
-  - `NEXT_PUBLIC_API_BASE_URL`: `https://your-railway-app.up.railway.app/api/v1`
-  - `NEXT_PUBLIC_WS_BASE_URL`: `wss://your-railway-app.up.railway.app`
-- Deploy!
+1. Connect your repo to [Vercel](https://vercel.com).
+2. Set **Root Directory** to `frontend`.
+3. Add environment variables:
 
-> Enjoy your private, hyper-intelligent, completely free Multi-Agent Researcher! 🔬
+| Variable | Value |
+|---|---|
+| `NEXT_PUBLIC_API_BASE_URL` | `https://your-railway-app.up.railway.app/api/v1` |
+| `NEXT_PUBLIC_WS_BASE_URL` | `wss://your-railway-app.up.railway.app` |
+
+---
+
+## 🧪 Running Tests
+
+```bash
+# Backend unit tests
+pip install pytest pytest-asyncio
+python -m pytest backend/tests/ -v
+
+# Frontend type check
+cd frontend && npx tsc --noEmit
+```
+
+---
+
+## 📁 Project Structure
+
+```
+├── .github/workflows/ci.yml   # GitHub Actions CI
+├── backend/
+│   ├── agents/                # 5 autonomous agents + orchestrator
+│   ├── api/                   # FastAPI routes + WebSocket endpoint
+│   ├── core/                  # Config, LLM client
+│   ├── models/                # Pydantic schemas
+│   ├── services/              # arXiv, Semantic Scholar, Web scraper, PDF
+│   ├── storage/               # Session persistence
+│   └── tests/                 # 12 test files
+├── frontend/
+│   └── src/
+│       ├── app/               # Next.js App Router pages
+│       ├── components/        # UI components + research dashboard
+│       └── lib/               # Types, API client, WebSocket
+├── railway.toml               # Railway deployment config
+├── render.yaml                # Render.com alt deployment
+└── .env.example               # Environment variable template
+```
+
+---
+
+> Built with ❤️ using FastAPI, Next.js, Ollama, and a lot of async Python.

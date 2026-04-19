@@ -41,3 +41,7 @@ build/
 .vscode/
 .idea/
 *.sqlite3
+
+# Dev / scratch files — do not commit
+tmp/
+backend/list.txt
