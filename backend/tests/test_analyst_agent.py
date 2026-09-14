@@ -11,7 +11,7 @@ from backend.models.schemas import (
 
 class AnalystAgentTestCase(unittest.IsolatedAsyncioTestCase):
     async def test_analyst_agent_synthesizes_reader_outputs(self) -> None:
-        agent = AnalystAgent()
+        agent = AnalystAgent(llm_provider="heuristic")
         papers = [
             ReaderResponse(
                 title="Autonomous Research Agents",

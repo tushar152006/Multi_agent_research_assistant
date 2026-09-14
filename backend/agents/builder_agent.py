@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+
 from backend.agents.base_agent import BaseAgent
 from backend.core.config import get_settings
 from backend.core.llm import LLMService, build_llm_service
@@ -18,11 +20,15 @@ class BuilderAgent(BaseAgent[BuilderRequest, BuilderResponse]):
 
     name = "builder_agent"
 
-    def __init__(self, llm_service: LLMService | None = None) -> None:
+    def __init__(
+        self,
+        llm_service: LLMService | None = None,
+        llm_provider: str | None = None,
+    ) -> None:
         settings = get_settings()
-        self._llm_provider = settings.llm_provider
+        self._llm_provider = llm_provider or settings.llm_provider
         self.llm_service = llm_service or build_llm_service(
-            provider=settings.llm_provider,
+            provider=self._llm_provider,
             ollama_base_url=settings.ollama_base_url,
             ollama_model=settings.ollama_model,
         )
@@ -65,12 +71,15 @@ class BuilderAgent(BaseAgent[BuilderRequest, BuilderResponse]):
             "LINE 2: A one-sentence value proposition explaining who benefits and why."
         )
         try:
-            raw = await self.llm_service.generate(prompt)
+            raw = await asyncio.wait_for(
+                self.llm_service.generate(prompt, max_tokens=80),
+                timeout=30.0,
+            )
             lines = [l.strip() for l in raw.splitlines() if l.strip()]
             idea = lines[0] if len(lines) > 0 and len(lines[0]) > 20 else None
             value = lines[1] if len(lines) > 1 and len(lines[1]) > 20 else None
             return idea, value
-        except Exception:
+        except (Exception, asyncio.CancelledError, asyncio.TimeoutError):
             return None, None
 
     def _build_project_idea(self, payload: BuilderRequest) -> str:

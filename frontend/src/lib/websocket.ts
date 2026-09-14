@@ -43,6 +43,7 @@ export const AGENT_LABELS: Record<string, string> = {
   research_agent: "Research Agent",
   reader_agent: "Reader Agent",
   analyst_agent: "Analyst Agent",
+  contradiction_agent: "Contradiction Agent",
   critic_agent: "Critic Agent",
   builder_agent: "Builder Agent",
 };

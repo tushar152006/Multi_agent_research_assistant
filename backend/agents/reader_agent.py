@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import re
 
 from backend.agents.base_agent import BaseAgent
@@ -23,12 +24,13 @@ class ReaderAgent(BaseAgent[ReaderRequest, ReaderResponse]):
         self,
         pdf_service: PdfService | None = None,
         llm_service: LLMService | None = None,
+        llm_provider: str | None = None,
     ) -> None:
         settings = get_settings()
-        self._llm_provider = settings.llm_provider
+        self._llm_provider = llm_provider or settings.llm_provider
         self.pdf_service = pdf_service or PdfService()
         self.llm_service = llm_service or build_llm_service(
-            provider=settings.llm_provider,
+            provider=self._llm_provider,
             ollama_base_url=settings.ollama_base_url,
             ollama_model=settings.ollama_model,
         )
@@ -69,10 +71,13 @@ class ReaderAgent(BaseAgent[ReaderRequest, ReaderResponse]):
             "In 1-2 concise sentences, state the core research problem this paper addresses."
         )
         try:
-            result = await self.llm_service.generate(prompt)
+            result = await asyncio.wait_for(
+                self.llm_service.generate(prompt, max_tokens=60),
+                timeout=25.0,
+            )
             result = result.strip()
             return result if len(result) > 20 else None
-        except Exception:
+        except (Exception, asyncio.CancelledError, asyncio.TimeoutError):
             return None
 
     def _extract_sections(self, text: str) -> dict[str, str]:

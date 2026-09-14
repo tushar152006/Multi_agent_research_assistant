@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 from enum import Enum
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -155,6 +156,9 @@ class ResearchResponse(BaseModel):
     analysis: AnalystResponse | None = None
     critique: CriticResponse | None = None
     implementation_plan: BuilderResponse | None = None
+    contradiction_matrix: Any | None = None
+    prisma_flow: Any | None = None
+    evidence_graph: Any | None = None
     session_id: str | None = None
     execution_trace: list[AgentExecution]
     generated_at: datetime = Field(

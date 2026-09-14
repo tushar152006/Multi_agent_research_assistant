@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import re
 from collections import Counter, defaultdict
 
@@ -20,11 +21,15 @@ class AnalystAgent(BaseAgent[AnalystRequest, AnalystResponse]):
 
     name = "analyst_agent"
 
-    def __init__(self, llm_service: LLMService | None = None) -> None:
+    def __init__(
+        self,
+        llm_service: LLMService | None = None,
+        llm_provider: str | None = None,
+    ) -> None:
         settings = get_settings()
-        self._llm_provider = settings.llm_provider
+        self._llm_provider = llm_provider or settings.llm_provider
         self.llm_service = llm_service or build_llm_service(
-            provider=settings.llm_provider,
+            provider=self._llm_provider,
             ollama_base_url=settings.ollama_base_url,
             ollama_model=settings.ollama_model,
         )
@@ -72,11 +77,14 @@ class AnalystAgent(BaseAgent[AnalystRequest, AnalystResponse]):
             "that best capture the findings across these papers."
         )
         try:
-            raw = await self.llm_service.generate(prompt)
+            raw = await asyncio.wait_for(
+                self.llm_service.generate(prompt, max_tokens=100),
+                timeout=30.0,
+            )
             lines = [line.strip() for line in raw.splitlines() if line.strip()]
             refined = [l for l in lines if 10 <= len(l) <= 200][:5]
             return refined if refined else None
-        except Exception:
+        except (Exception, asyncio.CancelledError, asyncio.TimeoutError):
             return None
 
     def _extract_themes(self, papers: list[ReaderResponse]) -> list[str]:

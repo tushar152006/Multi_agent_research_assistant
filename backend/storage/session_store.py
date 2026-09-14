@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import uuid
 from pathlib import Path
 
@@ -17,12 +18,18 @@ class SessionStore:
         self.sessions_path = self.base_path / "sessions"
         self.sessions_path.mkdir(parents=True, exist_ok=True)
 
+    @staticmethod
+    def _validate_session_id(session_id: str) -> None:
+        if not session_id or not re.match(r"^[a-zA-Z0-9_-]+$", session_id):
+            raise HTTPException(status_code=400, detail=f"Invalid session ID '{session_id}'.")
+
     # ------------------------------------------------------------------
     # Write operations
     # ------------------------------------------------------------------
 
     async def save_report(self, report: ResearchResponse) -> ResearchResponse:
         session_id = report.session_id or str(uuid.uuid4())
+        self._validate_session_id(session_id)
         persisted_report = report.model_copy(update={"session_id": session_id})
         session_file = self.sessions_path / f"{session_id}.json"
         session_file.write_text(
@@ -33,6 +40,7 @@ class SessionStore:
 
     async def delete_report(self, session_id: str) -> bool:
         """Delete a session file. Returns True if it existed, False otherwise."""
+        self._validate_session_id(session_id)
         session_file = self.sessions_path / f"{session_id}.json"
         if not session_file.exists():
             return False
@@ -44,6 +52,7 @@ class SessionStore:
     # ------------------------------------------------------------------
 
     async def get_report(self, session_id: str) -> ResearchResponse:
+        self._validate_session_id(session_id)
         session_file = self.sessions_path / f"{session_id}.json"
         if not session_file.exists():
             raise HTTPException(status_code=404, detail=f"Session '{session_id}' not found.")
@@ -52,6 +61,7 @@ class SessionStore:
 
     async def export_report_json(self, session_id: str) -> str:
         """Return the raw JSON string for a session (for file downloads)."""
+        self._validate_session_id(session_id)
         session_file = self.sessions_path / f"{session_id}.json"
         if not session_file.exists():
             raise HTTPException(status_code=404, detail=f"Session '{session_id}' not found.")

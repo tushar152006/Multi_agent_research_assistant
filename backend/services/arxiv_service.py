@@ -7,8 +7,11 @@ from xml.etree import ElementTree
 import httpx
 
 
-ARXIV_API_URL: Final[str] = "http://export.arxiv.org/api/query"
+ARXIV_API_URL: Final[str] = "https://export.arxiv.org/api/query"
 ATOM_NAMESPACE: Final[dict[str, str]] = {"atom": "http://www.w3.org/2005/Atom"}
+ARXIV_HEADERS: Final[dict[str, str]] = {
+    "User-Agent": "MARA-Research-Assistant/1.0 (academic research; mailto:research@example.com)"
+}
 
 
 @dataclass(slots=True)
@@ -42,10 +45,19 @@ class ArxivService:
         }
 
         if self._client is not None:
-            response = await self._client.get(self.base_url, params=params)
+            response = await self._client.get(
+                self.base_url,
+                params=params,
+                headers=ARXIV_HEADERS,
+                follow_redirects=True,
+            )
         else:
-            async with httpx.AsyncClient(timeout=self.timeout) as client:
-                response = await client.get(self.base_url, params=params)
+            async with httpx.AsyncClient(timeout=self.timeout, follow_redirects=True) as client:
+                response = await client.get(
+                    self.base_url,
+                    params=params,
+                    headers=ARXIV_HEADERS,
+                )
 
         response.raise_for_status()
         return self.parse_response(response.text)

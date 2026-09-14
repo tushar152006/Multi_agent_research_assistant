@@ -51,3 +51,11 @@ class SessionStoreTestCase(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(sessions), 1)
         self.assertEqual(sessions[0].session_id, saved.session_id)
         self.assertEqual(sessions[0].query, "agent memory")
+
+    async def test_invalid_session_id_rejected(self) -> None:
+        from fastapi import HTTPException
+        for bad_id in ["../evil", "foo/bar", "evil\\path", "", "test;drop"]:
+            with self.subTest(bad_id=bad_id):
+                with self.assertRaises(HTTPException) as ctx:
+                    await self.store.get_report(bad_id)
+                self.assertEqual(ctx.exception.status_code, 400)

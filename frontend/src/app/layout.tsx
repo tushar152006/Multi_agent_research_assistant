@@ -6,17 +6,18 @@ import "./globals.css";
 const headingFont = Space_Grotesk({
   subsets: ["latin"],
   variable: "--font-heading",
+  weight: ["400", "500", "600", "700"],
 });
 
 const bodyFont = IBM_Plex_Sans({
   subsets: ["latin"],
-  weight: ["400", "500", "600"],
+  weight: ["400", "500", "600", "700"],
   variable: "--font-body",
 });
 
 export const metadata: Metadata = {
-  title: "Multi-Agent Research Assistant",
-  description: "Local-first research orchestration dashboard",
+  title: "MARA — Multi-Agent Autonomous Research Assistant",
+  description: "Autonomous research intelligence command center powered by 7 specialized agents.",
 };
 
 export default function RootLayout({
@@ -27,9 +28,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${headingFont.variable} ${bodyFont.variable}`}>
-        <main className="main-layout">
-          {children}
-        </main>
+        {children}
       </body>
     </html>
   );

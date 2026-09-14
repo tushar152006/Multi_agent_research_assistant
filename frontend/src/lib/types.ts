@@ -104,6 +104,81 @@ export type BuilderResponse = {
   }>;
 };
 
+export type ContradictionSeverity =
+  | "direct_empirical"
+  | "methodological_disagreement"
+  | "qualitative_conflict"
+  | "limitation_collision";
+
+export type ContradictionPair = {
+  paper_a: string;
+  paper_b: string;
+  topic: string;
+  claim_a: string;
+  claim_b: string;
+  severity: ContradictionSeverity;
+  confidence: number;
+  root_cause: string;
+  resolution_hypothesis: string;
+};
+
+export type ContradictionMatrixResult = {
+  papers_analyzed: string[];
+  total_pairs_checked: number;
+  tensions: ContradictionPair[];
+  matrix_density: number;
+  most_controversial_paper: string | null;
+  key_open_debates: string[];
+};
+
+export type PrismaStatus = "included" | "excluded";
+export type PrismaStage = "identification" | "screening" | "eligibility" | "included";
+
+export type PaperScreeningDecision = {
+  paper_title: string;
+  source: string;
+  stage: PrismaStage;
+  status: PrismaStatus;
+  reason: string;
+  relevance_score: number;
+};
+
+export type PrismaFlowResult = {
+  total_identified: number;
+  identification_by_source: Record<string, number>;
+  duplicates_removed: number;
+  records_screened: number;
+  records_excluded: number;
+  full_text_assessed: number;
+  studies_included: number;
+  audit_trail: PaperScreeningDecision[];
+  mermaid_flowchart: string;
+};
+
+export type GraphNodeType = "paper" | "dataset" | "method" | "metric" | "theme";
+
+export type GraphNode = {
+  id: string;
+  label: string;
+  node_type: GraphNodeType;
+  properties?: Record<string, string>;
+};
+
+export type GraphEdge = {
+  source: string;
+  target: string;
+  relation: string;
+  label: string;
+  weight?: number;
+};
+
+export type EvidenceGraphResult = {
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+  central_concepts: string[];
+  mermaid_diagram: string;
+};
+
 export type ResearchResponse = {
   query: string;
   query_type: QueryType;
@@ -113,6 +188,9 @@ export type ResearchResponse = {
   analysis: AnalystResponse | null;
   critique: CriticResponse | null;
   implementation_plan: BuilderResponse | null;
+  contradiction_matrix?: ContradictionMatrixResult | null;
+  prisma_flow?: PrismaFlowResult | null;
+  evidence_graph?: EvidenceGraphResult | null;
   session_id: string | null;
   execution_trace: AgentExecution[];
   generated_at: string;

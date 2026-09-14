@@ -12,8 +12,8 @@ export function Button({
   className = '', 
   ...props 
 }: ButtonProps) {
-  const baseClass = 'btn';
-  const variantClass = variant === 'primary' ? 'btn-primary' : 'btn-outline';
+  const baseClass = 'button';
+  const variantClass = variant === 'primary' ? 'button-primary' : 'button-secondary';
   
   return (
     <button 

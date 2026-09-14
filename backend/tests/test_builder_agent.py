@@ -13,7 +13,7 @@ from backend.models.schemas import (
 
 class BuilderAgentTestCase(unittest.IsolatedAsyncioTestCase):
     async def test_builder_agent_generates_implementation_plan(self) -> None:
-        agent = BuilderAgent()
+        agent = BuilderAgent(llm_provider="heuristic")
         analysis = AnalystResponse(
             query="multi agent research",
             themes=["multi agent workflows"],

@@ -1,20 +1,55 @@
+import os
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
 from backend.core.config import get_settings
 from backend.api.main import app
+from backend.models.schemas import PaperSummary, ResearchRequest
+
+
+async def mock_research_run(self, payload: ResearchRequest) -> list[PaperSummary]:
+    count = payload.max_results
+    return [
+        PaperSummary(
+            title=f"Sample Paper {i+1} on {payload.query}",
+            authors=["Researcher A", "Researcher B"],
+            source="arXiv",
+            external_id=f"arxiv:2501.0000{i+1}",
+            abstract=f"This is a verified test abstract for sample paper {i+1} analyzing {payload.query} in detail.",
+            relevance_score=90 - i * 5,
+        )
+        for i in range(count)
+    ]
 
 
 class ApiTestCase(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
+        cls.env_patcher = patch.dict(os.environ, {"LLM_PROVIDER": "heuristic"})
+        cls.env_patcher.start()
+        get_settings.cache_clear()
+
+        cls.research_patcher = patch(
+            "backend.agents.research_agent.ResearchAgent.run",
+            new=mock_research_run,
+        )
+        cls.research_patcher.start()
+
         session_dir = Path(get_settings().local_storage_path)
         if session_dir.exists():
             for path in session_dir.glob("sessions/*.json"):
                 path.unlink()
         cls.client = TestClient(app)
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        cls.research_patcher.stop()
+        cls.env_patcher.stop()
+        get_settings.cache_clear()
+
 
     def test_healthcheck(self) -> None:
         response = self.client.get("/health")

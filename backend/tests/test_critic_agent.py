@@ -16,7 +16,7 @@ class StubLLMService:
 
 class CriticAgentTestCase(unittest.IsolatedAsyncioTestCase):
     async def test_critic_agent_generates_heuristic_critiques(self) -> None:
-        agent = CriticAgent()
+        agent = CriticAgent(review_mode="heuristic")
         analysis = AnalystResponse(
             query="multi agent research",
             themes=["multi agent pipelines"],

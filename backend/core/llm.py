@@ -9,14 +9,14 @@ class LLMService(ABC):
     """Abstract interface for optional text generation backends."""
 
     @abstractmethod
-    async def generate(self, prompt: str) -> str:
+    async def generate(self, prompt: str, max_tokens: int = 120) -> str:
         """Generate text for a prompt."""
 
 
 class HeuristicLLMService(LLMService):
     """Placeholder provider used when no local model is configured."""
 
-    async def generate(self, prompt: str) -> str:
+    async def generate(self, prompt: str, max_tokens: int = 120) -> str:
         raise RuntimeError("Heuristic provider does not support text generation.")
 
 
@@ -27,7 +27,7 @@ class OllamaService(LLMService):
         self,
         base_url: str = "http://localhost:11434",
         model: str = "llama3.1:8b",
-        timeout: float = 60.0,
+        timeout: float = 120.0,
         client: httpx.AsyncClient | None = None,
     ) -> None:
         self.base_url = base_url.rstrip("/")
@@ -35,11 +35,16 @@ class OllamaService(LLMService):
         self.timeout = timeout
         self._client = client
 
-    async def generate(self, prompt: str) -> str:
+    async def generate(self, prompt: str, max_tokens: int = 120) -> str:
         payload = {
             "model": self.model,
             "prompt": prompt,
             "stream": False,
+            "options": {
+                "num_predict": max_tokens,
+                "temperature": 0.2,
+                "top_p": 0.9,
+            },
         }
 
         if self._client is not None:

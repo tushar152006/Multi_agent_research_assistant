@@ -15,11 +15,15 @@ class CriticAgent(BaseAgent[CriticRequest, CriticResponse]):
 
     name = "critic_agent"
 
-    def __init__(self, llm_service: LLMService | None = None) -> None:
+    def __init__(
+        self,
+        llm_service: LLMService | None = None,
+        review_mode: str | None = None,
+    ) -> None:
         settings = get_settings()
-        self.review_mode = settings.llm_provider
+        self.review_mode = review_mode or settings.llm_provider
         self.llm_service = llm_service or build_llm_service(
-            provider=settings.llm_provider,
+            provider=self.review_mode,
             ollama_base_url=settings.ollama_base_url,
             ollama_model=settings.ollama_model,
         )

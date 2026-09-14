@@ -58,6 +58,32 @@ export async function analyzeDocument(
   return (await response.json()) as ResearchResponse;
 }
 
+export async function uploadPdf(
+  file: File,
+  title?: string,
+): Promise<ResearchResponse> {
+  const docTitle = title || file.name.replace(/\.[^/.]+$/, "");
+  const response = await fetch(
+    `${API_BASE_URL}/research/upload-pdf?title=${encodeURIComponent(docTitle)}`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/pdf",
+      },
+      body: file,
+    },
+  );
+
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => null);
+    throw new Error(
+      errorBody?.detail || "Failed to extract and analyze the PDF document.",
+    );
+  }
+
+  return (await response.json()) as ResearchResponse;
+}
+
 export async function listSessions(): Promise<SessionListResponse> {
   const response = await fetch(`${API_BASE_URL}/research`, {
     cache: "no-store",
@@ -112,6 +138,46 @@ export async function exportSession(sessionId: string): Promise<void> {
   const anchor = document.createElement("a");
   anchor.href = url;
   anchor.download = `research-${sessionId.slice(0, 8)}.json`;
+  document.body.appendChild(anchor);
+  anchor.click();
+  document.body.removeChild(anchor);
+  URL.revokeObjectURL(url);
+}
+
+export async function exportBibtex(sessionId: string): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/research/export/${sessionId}/bibtex`, {
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to export BibTeX references.");
+  }
+
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = `references-${sessionId.slice(0, 8)}.bib`;
+  document.body.appendChild(anchor);
+  anchor.click();
+  document.body.removeChild(anchor);
+  URL.revokeObjectURL(url);
+}
+
+export async function exportMarkdown(sessionId: string): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/research/export/${sessionId}/markdown`, {
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to export Markdown systematic review report.");
+  }
+
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = `review-${sessionId.slice(0, 8)}.md`;
   document.body.appendChild(anchor);
   anchor.click();
   document.body.removeChild(anchor);

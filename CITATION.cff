@@ -1,0 +1,20 @@
+cff-version: 1.2.0
+message: "If you use this software in your research or applications, please cite it as below."
+authors:
+  - family-names: "Tushar"
+    given-names: "Tushar"
+title: "Autonomous Multi-Agent Research Assistant"
+version: 1.0.0
+date-released: 2026-04-19
+url: "https://github.com/tushar152006/Multi_agent_research_assistant"
+repository-code: "https://github.com/tushar152006/Multi_agent_research_assistant"
+keywords:
+  - "multi-agent systems"
+  - "autonomous research"
+  - "systematic literature review"
+  - "PRISMA 2020"
+  - "evidence graph"
+  - "knowledge graph"
+  - "fastapi"
+  - "nextjs"
+license: MIT

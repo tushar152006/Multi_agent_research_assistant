@@ -31,7 +31,7 @@ Future work should evaluate broader domains and stronger long-context models.
 
 class ReaderAgentTestCase(unittest.IsolatedAsyncioTestCase):
     async def test_reader_agent_extracts_structured_sections(self) -> None:
-        agent = ReaderAgent()
+        agent = ReaderAgent(llm_provider="heuristic")
 
         result = await agent.run(
             ReaderRequest(
