@@ -4,6 +4,11 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from backend.core.citation_grounding import (
+    GroundedChunk,
+    GroundingVerificationResult,
+)
+
 
 class QueryType(str, Enum):
     SIMPLE_SEARCH = "simple_search"
@@ -25,6 +30,8 @@ class PaperSummary(BaseModel):
     external_id: str
     abstract: str
     relevance_score: int = Field(ge=0, le=100)
+    pdf_url: str | None = None
+    is_full_text: bool = False
 
 
 class ReaderRequest(BaseModel):
@@ -52,6 +59,7 @@ class ReaderResponse(BaseModel):
     limitations: list[str] = Field(default_factory=list)
     future_work: list[str] = Field(default_factory=list)
     extracted_sections: dict[str, str] = Field(default_factory=dict)
+    grounded_chunks: list[GroundedChunk] = Field(default_factory=list)
 
 
 class AnalystRequest(BaseModel):
@@ -92,6 +100,7 @@ class CritiqueItem(BaseModel):
 class CriticRequest(BaseModel):
     query: str = Field(min_length=3, max_length=500)
     analysis: AnalystResponse
+    grounding_audit: GroundingVerificationResult | None = None
 
 
 class CriticResponse(BaseModel):
@@ -159,6 +168,7 @@ class ResearchResponse(BaseModel):
     contradiction_matrix: Any | None = None
     prisma_flow: Any | None = None
     evidence_graph: Any | None = None
+    grounding_audit: GroundingVerificationResult | None = None
     session_id: str | None = None
     execution_trace: list[AgentExecution]
     generated_at: datetime = Field(

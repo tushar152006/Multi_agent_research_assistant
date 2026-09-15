@@ -16,10 +16,16 @@ export function MermaidViewer({ chart }: MermaidViewerProps) {
     let isMounted = true;
     if (!chart || typeof window === "undefined") return;
 
-    // Dynamically import Mermaid from CDN for zero-dependency visual rendering
-    const dynamicImport = new Function("url", "return import(url)");
-    dynamicImport("https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs")
-      .then((m: any) => {
+    // Sanitize diagram chart definition to prevent XSS payloads
+    const sanitizedChart = chart
+      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
+      .replace(/<foreignObject\b[^<]*(?:(?!<\/foreignObject>)<[^<]*)*<\/foreignObject>/gi, "")
+      .replace(/on\w+\s*=\s*(?:["'][^"']*["']|[^\s>]+)/gi, "")
+      .replace(/javascript\s*:/gi, "");
+
+    // Bundled Next.js dynamic import (eliminates runtime CDN execution)
+    import("mermaid")
+      .then((m) => {
         if (!isMounted) return;
         const mermaid = m.default || m;
         mermaid.initialize({
@@ -34,15 +40,19 @@ export function MermaidViewer({ chart }: MermaidViewerProps) {
             tertiaryColor: "#FFFFFF",
             fontFamily: "inherit",
           },
-          securityLevel: "loose",
-          fontFamily: "inherit",
+          securityLevel: "strict",
         });
         const id = `mermaid-${Math.random().toString(36).substring(2, 9)}`;
-        return mermaid.render(id, chart);
+        return mermaid.render(id, sanitizedChart);
       })
-      .then((res: { svg?: string }) => {
+      .then((res?: { svg?: string }) => {
         if (isMounted && res?.svg) {
-          setSvgContent(res.svg);
+          // Additional safety check: ensure no raw scripts or foreignObjects in generated SVG
+          const safeSvg = res.svg
+            .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
+            .replace(/<foreignObject\b[^<]*(?:(?!<\/foreignObject>)<[^<]*)*<\/foreignObject>/gi, "")
+            .replace(/on\w+\s*=\s*(?:["'][^"']*["']|[^\s>]+)/gi, "");
+          setSvgContent(safeSvg);
           setRenderError(null);
         }
       })

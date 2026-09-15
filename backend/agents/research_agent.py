@@ -54,10 +54,7 @@ class ResearchAgent(BaseAgent[ResearchRequest, list[PaperSummary]]):
             max_results=payload.max_results,
         )
 
-        if merged_papers:
-            return merged_papers
-
-        return self._fallback_papers(normalized_query, payload.max_results)
+        return merged_papers
 
     async def _search_web(self, query: str, max_results: int) -> list[PaperSummary]:
         """Search the web and convert results to PaperSummary format."""
@@ -71,7 +68,7 @@ class ResearchAgent(BaseAgent[ResearchRequest, list[PaperSummary]]):
                     source="Web",
                     external_id=f"web:{res.url}",
                     abstract=res.content,
-                    relevance_score=self._score_relevance(query, res.title, res.content, i)
+                    relevance_score=self._score_relevance(query, res.title, res.content, i, source="Web")
                 ))
             return summaries
         except Exception:
@@ -165,50 +162,8 @@ class ResearchAgent(BaseAgent[ResearchRequest, list[PaperSummary]]):
                 summary=paper.abstract,
                 rank=rank,
             ),
+            pdf_url=paper.open_access_pdf_url,
         )
-
-    def _fallback_papers(
-        self,
-        normalized_query: str,
-        max_results: int,
-    ) -> list[PaperSummary]:
-        papers = [
-            PaperSummary(
-                title=f"{normalized_query}: A Survey of Modern Methods",
-                authors=["A. Researcher", "B. Engineer"],
-                source="Fallback",
-                external_id="fallback:survey",
-                abstract=(
-                    "A high-level survey covering key themes, benchmarks, and "
-                    "open problems related to the query."
-                ),
-                relevance_score=94,
-            ),
-            PaperSummary(
-                title=f"Practical Systems for {normalized_query}",
-                authors=["C. Scientist", "D. Builder"],
-                source="Fallback",
-                external_id="fallback:systems",
-                abstract=(
-                    "A systems-oriented paper focused on implementation tradeoffs "
-                    "and deployment constraints."
-                ),
-                relevance_score=89,
-            ),
-            PaperSummary(
-                title=f"Evaluation Strategies in {normalized_query}",
-                authors=["E. Analyst"],
-                source="Fallback",
-                external_id="fallback:evaluation",
-                abstract=(
-                    "A review of evaluation methodology, dataset design, and "
-                    "experimental rigor in the field."
-                ),
-                relevance_score=84,
-            ),
-        ]
-
-        return papers[:max_results]
 
     @staticmethod
     def _normalize_external_id(entry_id: str) -> str:
@@ -220,25 +175,59 @@ class ResearchAgent(BaseAgent[ResearchRequest, list[PaperSummary]]):
 
     @staticmethod
     def _deduplicate_papers(papers: list[PaperSummary]) -> list[PaperSummary]:
-        deduplicated: dict[str, PaperSummary] = {}
+        by_title: dict[str, PaperSummary] = {}
+        by_id: dict[str, PaperSummary] = {}
 
         for paper in papers:
-            key = re.sub(r"[^a-z0-9]+", "", paper.title.lower())
-            existing = deduplicated.get(key)
-            if existing is None or paper.relevance_score > existing.relevance_score:
-                deduplicated[key] = paper
+            title_key = re.sub(r"[^a-z0-9]+", "", paper.title.lower())
+            id_key = paper.external_id.lower().strip() if paper.external_id else ""
 
-        return list(deduplicated.values())
+            # Check if existing in either index
+            existing = by_title.get(title_key) or (by_id.get(id_key) if id_key else None)
+
+            if existing is None:
+                by_title[title_key] = paper
+                if id_key:
+                    by_id[id_key] = paper
+            else:
+                # Keep the candidate with higher score or open-access PDF
+                if (paper.pdf_url and not existing.pdf_url) or paper.relevance_score > existing.relevance_score:
+                    by_title[title_key] = paper
+                    if id_key:
+                        by_id[id_key] = paper
+
+        return list(by_title.values())
 
     @staticmethod
-    def _score_relevance(query: str, title: str, summary: str, rank: int) -> int:
+    def _score_relevance(query: str, title: str, summary: str, rank: int, source: str = "arXiv") -> int:
+        norm_query = query.strip().lower()
         query_terms = {
             term.lower()
-            for term in re.findall(r"[a-zA-Z0-9]+", query)
+            for term in re.findall(r"[a-zA-Z0-9]+", norm_query)
             if len(term) > 2
         }
-        text = f"{title} {summary}".lower()
-        overlap = sum(1 for term in query_terms if term in text)
-        lexical_bonus = min(overlap * 8, 24)
-        rank_penalty = min((rank - 1) * 4, 20)
-        return max(60, min(98, 82 + lexical_bonus - rank_penalty))
+        text_title = title.lower()
+        text_summary = summary.lower()
+        full_text = f"{text_title} {text_summary}"
+
+        if not query_terms:
+            return 70
+
+        # Term overlap
+        overlap = sum(1 for term in query_terms if term in full_text)
+        overlap_ratio = overlap / len(query_terms)
+
+        # Exact phrase bonus
+        phrase_bonus = 0
+        if norm_query in text_title:
+            phrase_bonus += 15
+        elif norm_query in text_summary:
+            phrase_bonus += 8
+
+        # Authority bonus for scholarly archives vs raw web
+        authority_bonus = 5 if source in ("arXiv", "Semantic Scholar") else 0
+
+        base_score = int(50 + overlap_ratio * 35 + phrase_bonus + authority_bonus)
+        rank_penalty = min((rank - 1) * 2, 12)
+        return max(35, min(99, base_score - rank_penalty))
+

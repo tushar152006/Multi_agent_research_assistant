@@ -88,9 +88,39 @@ class ArxivService:
 
         return papers
 
+    async def fetch_pdf_text(self, entry_id: str, max_bytes: int = 10_000_000) -> str | None:
+        """Attempt to fetch and extract full text from an arXiv open-access PDF."""
+        arxiv_id = (
+            entry_id.rsplit("abs/", 1)[-1].strip()
+            if "abs/" in entry_id
+            else entry_id.rsplit("/", 1)[-1].strip()
+        )
+        if not arxiv_id:
+            return None
+
+        # Strip any prefix like 'arxiv:'
+        if arxiv_id.lower().startswith("arxiv:"):
+            arxiv_id = arxiv_id[6:]
+
+        pdf_url = f"https://arxiv.org/pdf/{arxiv_id}.pdf"
+        try:
+            from backend.services.pdf_service import PdfService
+            pdf_service = PdfService()
+
+            async with httpx.AsyncClient(timeout=12.0, follow_redirects=True) as client:
+                response = await client.get(pdf_url, headers=ARXIV_HEADERS)
+                if response.status_code == 200 and len(response.content) <= max_bytes:
+                    extracted = pdf_service.extract_text_from_bytes(response.content)
+                    if extracted and len(extracted) > 200:
+                        return extracted
+        except Exception:
+            return None
+        return None
+
     @staticmethod
     def _read_text(entry: ElementTree.Element, selector: str) -> str:
         node = entry.find(selector, ATOM_NAMESPACE)
         if node is None or node.text is None:
             return ""
         return node.text.strip()
+

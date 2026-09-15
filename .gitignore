@@ -1,5 +1,12 @@
-# Environments
+# Environments & Secrets
 .env
+.env.*
+!.env.example
+*.env
+*.key
+*.pem
+*.token
+*.cert
 .env.local
 .venv
 backend/data/

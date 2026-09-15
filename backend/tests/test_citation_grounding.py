@@ -143,5 +143,42 @@ class CitationGroundingTests(unittest.TestCase):
         self.assertEqual(len(result.unsupported_claims), 1)
 
 
+    def test_citation_auditor_end_to_end(self) -> None:
+        from backend.agents.citation_auditor import CitationAuditor
+        from backend.models.schemas import (
+            MethodologySummary,
+            ReaderResponse,
+            ResultsSummary,
+        )
+
+        auditor = CitationAuditor()
+        text = "Deep learning models require extensive computational resources for large scale training."
+        chunks = self.engine.segment_into_chunks(
+            paper_title="Compute Study",
+            source="study.pdf",
+            text=text,
+        )
+        reader_resp = ReaderResponse(
+            title="Compute Study",
+            problem="High compute demand",
+            methodology=MethodologySummary(approach="Empirical benchmark"),
+            results=ResultsSummary(primary_findings=["Finding 1"]),
+            limitations=["Cost"],
+            grounded_chunks=chunks,
+        )
+
+        findings = [
+            {"claim": "Deep learning models require extensive computational resources.", "category": "theme"},
+            {"claim": "Quantum computers have replaced GPUs everywhere.", "category": "consensus"},
+        ]
+
+        result = auditor.audit(reader_outputs=[reader_resp], findings=findings)
+
+        self.assertEqual(result.total_claims, 2)
+        self.assertEqual(result.verified_claims, 1)
+        self.assertEqual(len(result.unsupported_claims), 1)
+        self.assertAlmostEqual(result.grounding_precision, 0.5, places=2)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -10,7 +10,7 @@
 [![Next.js 16](https://img.shields.io/badge/Next.js-16.2.1-000000?style=for-the-badge&logo=next.js&logoColor=white)](https://nextjs.org/)
 [![TypeScript 5](https://img.shields.io/badge/TypeScript-5.0+-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Docker Ready](https://img.shields.io/badge/Docker-Enabled-2496ED?style=for-the-badge&logo=docker&logoColor=white)](docker-compose.yml)
-[![Tests Passing](https://img.shields.io/badge/Tests-44%2F44%20Passing-success?style=for-the-badge&logo=pytest&logoColor=white)](#-testing--quality-assurance)
+[![Tests Passing](https://img.shields.io/badge/Tests-59%2F59%20Passing-success?style=for-the-badge&logo=pytest&logoColor=white)](#-testing--quality-assurance)
 [![PRs Welcome](https://img.shields.io/badge/PRs-Welcome-brightgreen.svg?style=for-the-badge)](CONTRIBUTING.md)
 
 <p align="center">
@@ -235,14 +235,16 @@ cp .env.example .env
 | `APP_NAME` | `Multi-Agent Research Assistant` | Application display name |
 | `ENVIRONMENT` | `development` | Runtime environment (`development`, `production`) |
 | `LOG_LEVEL` | `INFO` | Logging verbosity (`DEBUG`, `INFO`, `WARNING`, `ERROR`) |
-| `LLM_PROVIDER` | `heuristic` | LLM backend engine: `heuristic`, `ollama`, or `openai` |
+| `LLM_PROVIDER` | `groq` | LLM backend engine: `groq`, `heuristic`, `ollama`, or `openai` |
+| `GROQ_API_KEY` | *None (required if groq)* | Free Groq API key from console.groq.com |
+| `GROQ_MODEL` | `openai/gpt-oss-120b` | High-capacity fast reasoning model on Groq |
 | `OLLAMA_BASE_URL`| `http://localhost:11434` | Ollama service endpoint URL |
 | `OLLAMA_MODEL` | `llama3.1:8b` | Model name for local LLM inference |
 | `SEMANTIC_SCHOLAR_API_KEY` | *None (optional)* | API key for higher Semantic Scholar rate limits |
 | `LOCAL_STORAGE_PATH` | `backend/data` | Root path for session persistence |
 
 > [!TIP]
-> The system operates in **heuristic mode** out of the box without requiring any external LLM keys or Ollama installation. All deterministic parsing, citation hashing, contradiction evaluation, and tests work 100% offline.
+> Never commit your real API keys to version control. Keep them safely stored in your local `.env` file, which is ignored by `.gitignore`.
 
 ---
 

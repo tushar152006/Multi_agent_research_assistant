@@ -1,3 +1,5 @@
+import asyncio
+import re
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import Response
 
@@ -12,19 +14,47 @@ from backend.models.schemas import (
 )
 from backend.storage.session_store import SessionStore
 from backend.services.pdf_service import PdfService
-
 from backend.services.academic_exporter import AcademicExporterService
+from backend.core.rate_limiter import research_limiter
 
 router = APIRouter(prefix="/research", tags=["research"])
 
 
-def get_orchestrator() -> Orchestrator:
-    return Orchestrator()
+def get_current_user(request: Request) -> str:
+    """Extract authenticated user identity from Authorization header or X-User-ID."""
+    auth_header = request.headers.get("authorization")
+    user_header = request.headers.get("x-user-id")
 
+    user_id: str | None = None
+    if auth_header and auth_header.startswith("Bearer "):
+        user_id = auth_header[7:].strip()
+    elif user_header:
+        user_id = user_header.strip()
 
-def get_session_store() -> SessionStore:
     settings = get_settings()
-    return SessionStore(settings.local_storage_path)
+    if not user_id:
+        if getattr(settings, "auth_required", False) or request.headers.get("x-require-auth"):
+            raise HTTPException(
+                status_code=401,
+                detail="Authentication credentials were not provided.",
+            )
+        return "default"
+
+    if not re.match(r"^[a-zA-Z0-9_-]+$", user_id):
+        raise HTTPException(status_code=400, detail="Invalid user identifier.")
+
+    return user_id
+
+
+def get_session_store(user_id: str = Depends(get_current_user)) -> SessionStore:
+    settings = get_settings()
+    return SessionStore(settings.local_storage_path, user_id=user_id)
+
+
+def get_orchestrator(
+    session_store: SessionStore = Depends(get_session_store),
+) -> Orchestrator:
+    return Orchestrator(session_store=session_store)
 
 
 def get_pdf_service() -> PdfService:
@@ -38,22 +68,25 @@ def get_academic_exporter() -> AcademicExporterService:
 @router.post("", response_model=ResearchResponse)
 async def run_research(
     request: ResearchRequest,
+    http_request: Request,
     orchestrator: Orchestrator = Depends(get_orchestrator),
 ) -> ResearchResponse:
+    research_limiter.check(http_request)
     return await orchestrator.process(request)
 
 
 @router.post("/analyze-doc", response_model=ResearchResponse)
 async def analyze_document(
     request: UploadTextRequest,
+    http_request: Request,
     orchestrator: Orchestrator = Depends(get_orchestrator),
 ) -> ResearchResponse:
     """Perform a research workflow on a specifically provided document/text."""
-    # We create a pseudo-research request where the query is the title
-    # and we manually pass the content to the orchestrator's agents
-    # In a real implementation, we'd adjust the orchestrator to skip discovery
-    # but for now, we'll just process it as a special case.
+    research_limiter.check(http_request)
     return await orchestrator.process_document(request.title, request.content)
+
+
+MAX_PDF_UPLOAD_BYTES = 20 * 1024 * 1024  # 20MB
 
 
 @router.post("/upload-pdf", response_model=ResearchResponse)
@@ -64,10 +97,24 @@ async def upload_pdf_document(
     orchestrator: Orchestrator = Depends(get_orchestrator),
 ) -> ResearchResponse:
     """Extract text from uploaded raw PDF bytes and process through the pipeline."""
+    research_limiter.check(request)
+    content_length = request.headers.get("content-length")
+    if content_length and int(content_length) > MAX_PDF_UPLOAD_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail="File payload exceeds maximum allowed size of 20MB.",
+        )
+
     payload = await request.body()
     if not payload:
         raise HTTPException(status_code=400, detail="Empty file payload received.")
-    extracted_text = pdf_service.extract_text_from_bytes(payload)
+    if len(payload) > MAX_PDF_UPLOAD_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail="File payload exceeds maximum allowed size of 20MB.",
+        )
+
+    extracted_text = await asyncio.to_thread(pdf_service.extract_text_from_bytes, payload)
     if not extracted_text or len(extracted_text.strip()) < 20:
         raise HTTPException(
             status_code=422,

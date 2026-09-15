@@ -179,6 +179,29 @@ export type EvidenceGraphResult = {
   mermaid_diagram: string;
 };
 
+export type CitationAnchor = {
+  paper_title: string;
+  chunk_id: string;
+  exact_quote: string;
+  confidence_score: number;
+  is_verified: boolean;
+};
+
+export type GroundedClaim = {
+  claim_text: string;
+  category: string;
+  citations: CitationAnchor[];
+  verification_status: string;
+};
+
+export type GroundingVerificationResult = {
+  total_claims: number;
+  verified_claims: number;
+  grounding_precision: number;
+  claims: GroundedClaim[];
+  unsupported_claims: string[];
+};
+
 export type ResearchResponse = {
   query: string;
   query_type: QueryType;
@@ -191,6 +214,7 @@ export type ResearchResponse = {
   contradiction_matrix?: ContradictionMatrixResult | null;
   prisma_flow?: PrismaFlowResult | null;
   evidence_graph?: EvidenceGraphResult | null;
+  grounding_audit?: GroundingVerificationResult | null;
   session_id: string | null;
   execution_trace: AgentExecution[];
   generated_at: string;

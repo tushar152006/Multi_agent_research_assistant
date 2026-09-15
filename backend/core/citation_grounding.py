@@ -19,6 +19,8 @@ class GroundedChunk(BaseModel):
     sentence_index: int
     text: str
     content_hash: str
+    paper_id: str = ""
+    page_number: int | None = None
 
     @classmethod
     def create(
@@ -28,6 +30,8 @@ class GroundedChunk(BaseModel):
         section: str,
         sentence_index: int,
         text: str,
+        paper_id: str = "",
+        page_number: int | None = None,
     ) -> "GroundedChunk":
         normalized_text = text.strip()
         content_hash = hashlib.sha256(
@@ -43,6 +47,8 @@ class GroundedChunk(BaseModel):
             sentence_index=sentence_index,
             text=normalized_text,
             content_hash=content_hash,
+            paper_id=paper_id,
+            page_number=page_number,
         )
 
 

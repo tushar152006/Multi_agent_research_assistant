@@ -4,8 +4,11 @@ import json
 import logging
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
+import re
 from backend.agents.orchestrator import Orchestrator
+from backend.core.config import get_settings
 from backend.models.schemas import ResearchRequest
+from backend.storage.session_store import SessionStore
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +24,18 @@ async def _send(ws: WebSocket, event: str, data: dict) -> None:
 async def research_websocket(ws: WebSocket) -> None:
     """
     WebSocket endpoint for real-time research pipeline progress powered by DAGEngine.
+    Enforces Origin header validation against CSWSH and isolates user sessions.
     """
+    settings = get_settings()
+    origin = ws.headers.get("origin")
+
+    # Enforce Origin header check to prevent Cross-Site WebSocket Hijacking (CSWSH)
+    if origin:
+        allowed = set(settings.cors_origins)
+        if "*" not in allowed and origin not in allowed:
+            await ws.close(code=1008, reason="Cross-site connection forbidden.")
+            return
+
     await ws.accept()
 
     try:
@@ -30,6 +44,23 @@ async def research_websocket(ws: WebSocket) -> None:
     except (WebSocketDisconnect, json.JSONDecodeError) as exc:
         await _send(ws, "error", {"message": f"Invalid request: {exc}"})
         await ws.close()
+        return
+
+    # Extract user identity from query param, header, or payload
+    user_id = ws.query_params.get("user_id") or ws.headers.get("x-user-id")
+    if not user_id and isinstance(payload, dict):
+        user_id = payload.get("user_id")
+
+    if not user_id:
+        if settings.auth_required:
+            await _send(ws, "error", {"message": "Authentication required."})
+            await ws.close(code=1008)
+            return
+        user_id = "default"
+
+    if not re.match(r"^[a-zA-Z0-9_-]+$", str(user_id)):
+        await _send(ws, "error", {"message": "Invalid user ID."})
+        await ws.close(code=1008)
         return
 
     try:
@@ -43,7 +74,8 @@ async def research_websocket(ws: WebSocket) -> None:
         await ws.close()
         return
 
-    orchestrator = Orchestrator()
+    session_store = SessionStore(settings.local_storage_path, user_id=str(user_id))
+    orchestrator = Orchestrator(session_store=session_store)
 
     async def on_event(event_name: str, data: dict) -> None:
         try:

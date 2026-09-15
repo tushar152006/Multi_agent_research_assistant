@@ -60,6 +60,37 @@ class CitationAuditor:
 
         return claims
 
+    def qualify_analysis(
+        self,
+        analysis: Any,
+        audit_result: GroundingVerificationResult,
+    ) -> Any:
+        """Explicitly qualify any consensus or theme finding that lacks verified grounding proof."""
+        unsupported = set(audit_result.unsupported_claims)
+        if not unsupported or not hasattr(analysis, "consensus"):
+            return analysis
+
+        qualified_consensus: list[str] = []
+        for item in getattr(analysis, "consensus", []):
+            if item in unsupported:
+                qualified_consensus.append(f"[Unverified Evidence] {item}")
+            else:
+                qualified_consensus.append(item)
+
+        qualified_themes: list[str] = []
+        for theme in getattr(analysis, "themes", []):
+            if theme in unsupported:
+                qualified_themes.append(f"[Preliminary] {theme}")
+            else:
+                qualified_themes.append(theme)
+
+        return analysis.model_copy(
+            update={
+                "consensus": qualified_consensus,
+                "themes": qualified_themes,
+            }
+        )
+
     def _read_finding(
         self,
         finding: dict[str, str] | object,

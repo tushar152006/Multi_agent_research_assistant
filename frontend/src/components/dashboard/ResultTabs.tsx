@@ -18,6 +18,7 @@ export type Tab =
   | "overview"
   | "papers"
   | "analysis"
+  | "grounding"
   | "tensions"
   | "graph"
   | "prisma"
@@ -41,6 +42,10 @@ export function ResultTabs({ report, onExport }: ResultTabsProps) {
     { id: "overview", label: "Overview" },
     { id: "papers", label: `Papers (${report.papers.length})` },
     { id: "analysis", label: "Analysis" },
+    {
+      id: "grounding",
+      label: `Grounding (${report.grounding_audit?.verified_claims ?? 0}/${report.grounding_audit?.total_claims ?? 0})`,
+    },
     {
       id: "tensions",
       label: `Contradictions (${report.contradiction_matrix?.tensions?.length ?? 0})`,
@@ -129,6 +134,7 @@ export function ResultTabs({ report, onExport }: ResultTabsProps) {
               overview: "var(--color-primary)",
               papers: "var(--color-accent)",
               analysis: "var(--color-primary)",
+              grounding: "var(--color-accent)",
               tensions: "var(--color-accent)",
               graph: "var(--color-primary)",
               prisma: "var(--color-accent)",
@@ -429,6 +435,136 @@ export function ResultTabs({ report, onExport }: ResultTabsProps) {
                   </ul>
                 </CardContent>
               </Card>
+            )}
+          </div>
+        )}
+
+        {tab === "grounding" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+                gap: 12,
+              }}
+            >
+              <Card>
+                <CardContent style={{ padding: 16 }}>
+                  <div style={{ fontSize: "0.75rem", color: "var(--muted)", textTransform: "uppercase", fontWeight: 700 }}>
+                    Grounding Precision
+                  </div>
+                  <div style={{ fontSize: "1.6rem", fontWeight: 800, marginTop: 4, color: "var(--color-primary)" }}>
+                    {report.grounding_audit
+                      ? `${Math.round(report.grounding_audit.grounding_precision * 100)}%`
+                      : "N/A"}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent style={{ padding: 16 }}>
+                  <div style={{ fontSize: "0.75rem", color: "var(--muted)", textTransform: "uppercase", fontWeight: 700 }}>
+                    Verified Claims
+                  </div>
+                  <div style={{ fontSize: "1.6rem", fontWeight: 800, marginTop: 4, color: "#10b981" }}>
+                    {report.grounding_audit?.verified_claims ?? 0}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent style={{ padding: 16 }}>
+                  <div style={{ fontSize: "0.75rem", color: "var(--muted)", textTransform: "uppercase", fontWeight: 700 }}>
+                    Total Evaluated
+                  </div>
+                  <div style={{ fontSize: "1.6rem", fontWeight: 800, marginTop: 4, color: "var(--foreground)" }}>
+                    {report.grounding_audit?.total_claims ?? 0}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {(!report.grounding_audit || report.grounding_audit.claims.length === 0) ? (
+              <Card>
+                <CardContent style={{ padding: 24, textAlign: "center", color: "var(--muted)" }}>
+                  No grounded claims were produced for this session.
+                </CardContent>
+              </Card>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                {report.grounding_audit.claims.map((claim, idx) => {
+                  const isVerified = claim.verification_status === "verified";
+                  const isPartial = claim.verification_status === "partially_verified";
+                  const statusBadgeColor = isVerified
+                    ? "#10b981"
+                    : isPartial
+                    ? "#f59e0b"
+                    : "#ef4444";
+
+                  return (
+                    <Card key={idx} style={{ borderLeft: `4px solid ${statusBadgeColor}` }}>
+                      <CardHeader style={{ paddingBottom: 8 }}>
+                        <div className="flex-between" style={{ gap: 12 }}>
+                          <span style={{ fontSize: "0.8rem", textTransform: "uppercase", color: "var(--muted)", fontWeight: 700 }}>
+                            {claim.category}
+                          </span>
+                          <span
+                            style={{
+                              fontSize: "0.75rem",
+                              fontWeight: 700,
+                              textTransform: "uppercase",
+                              padding: "2px 8px",
+                              borderRadius: 4,
+                              background: `${statusBadgeColor}20`,
+                              color: statusBadgeColor,
+                            }}
+                          >
+                            {claim.verification_status.replace("_", " ")}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: "1.05rem", fontWeight: 600, marginTop: 6, lineHeight: 1.5 }}>
+                          {claim.claim_text}
+                        </div>
+                      </CardHeader>
+
+                      <CardContent style={{ paddingTop: 0 }}>
+                        {claim.citations.length > 0 ? (
+                          <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
+                            <span style={{ fontSize: "0.78rem", color: "var(--muted)", fontWeight: 600 }}>
+                              Source Verification Anchors:
+                            </span>
+                            {claim.citations.map((cite, cIdx) => (
+                              <div
+                                key={cIdx}
+                                style={{
+                                  background: "var(--surface-strong)",
+                                  padding: "8px 12px",
+                                  borderRadius: "var(--radius-sm)",
+                                  fontSize: "0.85rem",
+                                }}
+                              >
+                                <div style={{ display: "flex", justifyContent: "space-between", gap: 8, marginBottom: 4 }}>
+                                  <strong style={{ color: "var(--color-primary)" }}>{cite.paper_title}</strong>
+                                  <span style={{ color: "var(--muted)", fontSize: "0.78rem" }}>
+                                    Confidence: {Math.round(cite.confidence_score * 100)}%
+                                  </span>
+                                </div>
+                                <div style={{ fontStyle: "italic", color: "var(--text)", lineHeight: 1.4 }}>
+                                  &ldquo;{cite.exact_quote}&rdquo;
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div style={{ fontSize: "0.82rem", color: "#ef4444", marginTop: 6 }}>
+                            ⚠️ No supporting sentence chunks found in source literature.
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
             )}
           </div>
         )}

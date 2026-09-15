@@ -52,7 +52,11 @@ export function runResearchWebSocket(
   input: ResearchInput,
   callbacks: PipelineCallbacks,
 ): () => void {
-  const ws = new WebSocket(`${WS_BASE_URL}/ws/research`);
+  let userId = "default";
+  if (typeof window !== "undefined" && window.localStorage) {
+    userId = window.localStorage.getItem("mara_user_id") || "default";
+  }
+  const ws = new WebSocket(`${WS_BASE_URL}/ws/research?user_id=${encodeURIComponent(userId)}`);
 
   ws.onopen = () => {
     ws.send(

@@ -8,6 +8,19 @@ import {
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000/api/v1";
 
+export function getClientHeaders(extra: Record<string, string> = {}): Record<string, string> {
+  const headers: Record<string, string> = { ...extra };
+  if (typeof window !== "undefined" && window.localStorage) {
+    let userId = window.localStorage.getItem("mara_user_id");
+    if (!userId) {
+      userId = `user_${Math.random().toString(36).substring(2, 10)}`;
+      window.localStorage.setItem("mara_user_id", userId);
+    }
+    headers["X-User-ID"] = userId;
+  }
+  return headers;
+}
+
 type RunResearchInput = {
   query: string;
   maxResults: number;
@@ -19,9 +32,9 @@ export async function runResearch(
 ): Promise<ResearchResponse> {
   const response = await fetch(`${API_BASE_URL}/research`, {
     method: "POST",
-    headers: {
+    headers: getClientHeaders({
       "Content-Type": "application/json",
-    },
+    }),
     body: JSON.stringify({
       query: input.query,
       max_results: input.maxResults,
@@ -42,9 +55,9 @@ export async function analyzeDocument(
 ): Promise<ResearchResponse> {
   const response = await fetch(`${API_BASE_URL}/research/analyze-doc`, {
     method: "POST",
-    headers: {
+    headers: getClientHeaders({
       "Content-Type": "application/json",
-    },
+    }),
     body: JSON.stringify({
       title,
       content,
@@ -67,9 +80,9 @@ export async function uploadPdf(
     `${API_BASE_URL}/research/upload-pdf?title=${encodeURIComponent(docTitle)}`,
     {
       method: "POST",
-      headers: {
+      headers: getClientHeaders({
         "Content-Type": "application/pdf",
-      },
+      }),
       body: file,
     },
   );
@@ -86,6 +99,7 @@ export async function uploadPdf(
 
 export async function listSessions(): Promise<SessionListResponse> {
   const response = await fetch(`${API_BASE_URL}/research`, {
+    headers: getClientHeaders(),
     cache: "no-store",
   });
 
@@ -98,6 +112,7 @@ export async function listSessions(): Promise<SessionListResponse> {
 
 export async function getSession(sessionId: string): Promise<ResearchResponse> {
   const response = await fetch(`${API_BASE_URL}/research/${sessionId}`, {
+    headers: getClientHeaders(),
     cache: "no-store",
   });
 
@@ -111,6 +126,7 @@ export async function getSession(sessionId: string): Promise<ResearchResponse> {
 export async function deleteSession(sessionId: string): Promise<DeleteResponse> {
   const response = await fetch(`${API_BASE_URL}/research/${sessionId}`, {
     method: "DELETE",
+    headers: getClientHeaders(),
   });
 
   if (!response.ok) {
@@ -126,6 +142,7 @@ export async function deleteSession(sessionId: string): Promise<DeleteResponse> 
  */
 export async function exportSession(sessionId: string): Promise<void> {
   const response = await fetch(`${API_BASE_URL}/research/export/${sessionId}`, {
+    headers: getClientHeaders(),
     cache: "no-store",
   });
 
@@ -146,6 +163,7 @@ export async function exportSession(sessionId: string): Promise<void> {
 
 export async function exportBibtex(sessionId: string): Promise<void> {
   const response = await fetch(`${API_BASE_URL}/research/export/${sessionId}/bibtex`, {
+    headers: getClientHeaders(),
     cache: "no-store",
   });
 
@@ -166,6 +184,7 @@ export async function exportBibtex(sessionId: string): Promise<void> {
 
 export async function exportMarkdown(sessionId: string): Promise<void> {
   const response = await fetch(`${API_BASE_URL}/research/export/${sessionId}/markdown`, {
+    headers: getClientHeaders(),
     cache: "no-store",
   });
 

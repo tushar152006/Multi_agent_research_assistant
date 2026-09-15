@@ -1,0 +1,184 @@
+[
+  {
+    "id": "SEC-001",
+    "status": "CONFIRMED",
+    "title": "Complete Absence of Authentication & Broken Object Level Authorization (BOLA) on Session Endpoints",
+    "severity": "HIGH",
+    "confidence": "HIGH",
+    "category": "Authentication & Authorization",
+    "cwe": "CWE-306: Missing Authentication for Critical Function, CWE-639: Authorization Bypass Through User-Controlled Key",
+    "owasp": "API1:2023 Broken Object Level Authorization, API2:2023 Broken Authentication",
+    "affected_files": [
+      "backend/api/routes/research.py",
+      "backend/storage/session_store.py"
+    ],
+    "evidence": "GET /api/v1/research and /api/v1/research/{session_id} permit any unauthenticated caller to list, read, export, and delete any session from backend/data/sessions/.",
+    "impact": "Complete loss of confidentiality and integrity for research sessions and uploaded documents across all users.",
+    "remediation": "Introduce an authentication dependency (e.g. JWT or API key), bind sessions to tenant/user IDs, and verify that the requesting user owns the session before returning or deleting it."
+  },
+  {
+    "id": "SEC-002",
+    "status": "CONFIRMED",
+    "title": "Unauthenticated WebSocket Endpoint & Cross-Site WebSocket Hijacking (CSWSH)",
+    "severity": "MEDIUM",
+    "confidence": "HIGH",
+    "category": "WebSocket Security",
+    "cwe": "CWE-1385: Missing Origin Validation in WebSockets, CWE-306: Missing Authentication",
+    "owasp": "API2:2023 Broken Authentication",
+    "affected_files": [
+      "backend/api/routes/websocket.py"
+    ],
+    "evidence": "websocket.py:25 unconditionally executes await ws.accept() without inspecting ws.headers.get('origin') or requiring an auth token in query/headers.",
+    "impact": "A malicious website visited by a user can open a cross-site WebSocket to the local backend, initiate heavy research workflows, and read streaming LLM responses.",
+    "remediation": "Validate the incoming Origin header against an explicit allowed-origin whitelist and require a short-lived authentication token upon connection handshake."
+  },
+  {
+    "id": "SEC-003",
+    "status": "CONFIRMED",
+    "title": "Unchecked Outbound HTTP Fetch with Redirects in Semantic Scholar PDF Fetcher (SSRF)",
+    "severity": "HIGH",
+    "confidence": "HIGH",
+    "category": "Server-Side Request Forgery",
+    "cwe": "CWE-918: Server-Side Request Forgery (SSRF)",
+    "owasp": "API7:2023 Server-Side Request Forgery",
+    "affected_files": [
+      "backend/services/semantic_scholar_service.py"
+    ],
+    "evidence": "semantic_scholar_service.py:112-115 fetches arbitrary openAccessPdf URLs using httpx.AsyncClient(follow_redirects=True) without is_safe_url() validation.",
+    "impact": "If an untrusted paper or external record supplies a malicious URL, the backend can be induced to query internal services (127.0.0.1:11434, 127.0.0.1:8000) or cloud metadata endpoints (169.254.169.254).",
+    "remediation": "Enforce WebScraperService.is_safe_url() or a shared IP validation filter before issuing requests in SemanticScholarService, and disable follow_redirects or validate destination IP at each redirect hop."
+  },
+  {
+    "id": "SEC-004",
+    "status": "CONFIRMED",
+    "title": "Synchronous Event-Loop Blocking & Unbounded PDF Page Extraction (Denial of Service)",
+    "severity": "MEDIUM",
+    "confidence": "HIGH",
+    "category": "Denial of Service",
+    "cwe": "CWE-400: Uncontrolled Resource Consumption, CWE-770: Allocation of Resources Without Limits",
+    "owasp": "API4:2023 Unrestricted Resource Consumption",
+    "affected_files": [
+      "backend/services/pdf_service.py",
+      "backend/api/routes/research.py"
+    ],
+    "evidence": "pdf_service.py:147 iterates over reader.pages without a maximum page bound, and research.py:86 calls this synchronously inside an async route handler without asyncio.to_thread.",
+    "impact": "Processing a multi-thousand-page or complex PDF freezes the main FastAPI asyncio event loop, causing denial of service for all active users and WebSocket streams.",
+    "remediation": "Wrap all PDF extraction calls in asyncio.to_thread() and enforce a strict maximum page parsing limit (e.g. max 100 pages)."
+  },
+  {
+    "id": "SEC-005",
+    "status": "CONFIRMED",
+    "title": "Prompt Delimiter Collision & Tag Escaping Vulnerability",
+    "severity": "MEDIUM",
+    "confidence": "HIGH",
+    "category": "AI / Prompt Security",
+    "cwe": "CWE-116: Improper Encoding or Escaping of Output",
+    "owasp": "LLM01:2025 Prompt Injection",
+    "affected_files": [
+      "backend/agents/analyst_agent.py",
+      "backend/agents/critic_agent.py",
+      "backend/agents/builder_agent.py"
+    ],
+    "evidence": "Prompt templates wrap external strings in <untrusted_research_data> ... </untrusted_research_data> without stripping or escaping literal '</untrusted_research_data>' in paper titles, queries, or extracted text.",
+    "impact": "Adversarial papers or user queries can prematurely terminate the untrusted data block and inject system-level directives to manipulate downstream analyst, critic, and builder agents.",
+    "remediation": "Sanitize and escape closing delimiter tags from all untrusted inputs prior to embedding them in prompt templates."
+  },
+  {
+    "id": "SEC-006",
+    "status": "CONFIRMED",
+    "title": "Remote Code Execution Risk via Dynamic CDN Script Import in MermaidViewer",
+    "severity": "HIGH",
+    "confidence": "HIGH",
+    "category": "Supply Chain & Browser Security",
+    "cwe": "CWE-829: Inclusion of Functionality from Untrusted Control Sphere, CWE-79: Cross-Site Scripting",
+    "owasp": "A08:2021 Software and Data Integrity Failures",
+    "affected_files": [
+      "frontend/src/components/ui/MermaidViewer.tsx"
+    ],
+    "evidence": "MermaidViewer.tsx:26-27 executes new Function('url', 'return import(url)')('https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs') to load and run unpinned JavaScript dynamically from a public CDN.",
+    "impact": "If the third-party CDN is compromised, poisoned, or intercepted, malicious JavaScript runs with full privileges in the user's browser session. Bypasses CSP script-src nonces.",
+    "remediation": "Install mermaid as an audited package dependency in package.json and bundle it locally with Next.js rather than importing arbitrary code at runtime."
+  },
+  {
+    "id": "SEC-007",
+    "status": "NEEDS VALIDATION",
+    "title": "Potential Time-of-Check to Time-of-Use (TOCTOU) DNS Rebinding in Web Scraper",
+    "severity": "LOW",
+    "confidence": "LOW",
+    "category": "Server-Side Request Forgery",
+    "cwe": "CWE-367: Time-of-check Time-of-use (TOCTOU) Race Condition",
+    "owasp": "API7:2023 Server-Side Request Forgery",
+    "affected_files": [
+      "backend/services/web_scraper_service.py"
+    ],
+    "evidence": "is_safe_url() checks socket.getaddrinfo() before httpx.AsyncClient().get() initiates a secondary independent DNS resolution.",
+    "impact": "A domain with a TTL of 0 seconds could resolve to a benign IP during validation and a private IP during HTTP fetch, though exploitation complexity via DuckDuckGo results is high.",
+    "remediation": "Pin the resolved IP address in the HTTP client or configure a custom transport resolver that connects strictly to the validated IP."
+  },
+  {
+    "id": "SEC-008",
+    "status": "CONFIRMED",
+    "title": "Permissive Wildcard CORS Configuration with Credentials Enabled",
+    "severity": "MEDIUM",
+    "confidence": "HIGH",
+    "category": "API & Browser Security",
+    "cwe": "CWE-942: Permissive Cross-Domain Policy with Untrusted Domains",
+    "owasp": "A05:2021 Security Misconfiguration",
+    "affected_files": [
+      "backend/api/main.py",
+      "backend/core/config.py"
+    ],
+    "evidence": "backend/core/config.py:14 defaults allowed_origins to ['*'] and backend/api/main.py:22 enables allow_credentials=True, causing Starlette to reflect the requesting origin.",
+    "impact": "Any third-party website visited by a user can send credentialed requests to the backend API and read responses.",
+    "remediation": "Restrict allowed_origins to explicit origins (e.g. ['http://localhost:3000']) when credentials are enabled."
+  },
+  {
+    "id": "SEC-009",
+    "status": "CONFIRMED",
+    "title": "Missing Standard HTTP Security Headers",
+    "severity": "LOW",
+    "confidence": "HIGH",
+    "category": "Browser Security",
+    "cwe": "CWE-693: Protection Mechanism Failure",
+    "owasp": "A05:2021 Security Misconfiguration",
+    "affected_files": [
+      "backend/api/main.py"
+    ],
+    "evidence": "FastAPI application lacks middleware injecting Content-Security-Policy, X-Content-Type-Options: nosniff, and X-Frame-Options: DENY.",
+    "impact": "Increased susceptibility to clickjacking, MIME-confusion, and unconstrained script execution.",
+    "remediation": "Add security header middleware or reverse-proxy header injection enforcing standard defensive headers."
+  },
+  {
+    "id": "SEC-010",
+    "status": "CONFIRMED",
+    "title": "Unbounded API Rate Limits and Resource Exhaustion",
+    "severity": "MEDIUM",
+    "confidence": "HIGH",
+    "category": "Resource Management",
+    "cwe": "CWE-770: Allocation of Resources Without Limits or Throttling",
+    "owasp": "API4:2023 Unrestricted Resource Consumption",
+    "affected_files": [
+      "backend/api/routes/research.py",
+      "backend/api/routes/websocket.py"
+    ],
+    "evidence": "No rate limiting middleware or request throttling is attached to /api/v1/research or /ws/research.",
+    "impact": "An attacker or automated client can rapidly drain Groq LLM API quota (tokens per minute) or exhaust backend CPU/memory with parallel execution.",
+    "remediation": "Implement slowapi or token bucket rate limiting on research initiation routes."
+  },
+  {
+    "id": "SEC-011",
+    "status": "CONFIRMED",
+    "title": "Backend Container Process Runs as Root",
+    "severity": "LOW",
+    "confidence": "HIGH",
+    "category": "Infrastructure Security",
+    "cwe": "CWE-250: Execution with Unnecessary Privileges",
+    "owasp": "A05:2021 Security Misconfiguration",
+    "affected_files": [
+      "Dockerfile.backend"
+    ],
+    "evidence": "Dockerfile.backend does not define a non-root USER directive, causing the uvicorn process to run as root (uid 0) in the container.",
+    "impact": "If an attacker achieves remote code execution or a container breakout, they execute with root privileges on the container system.",
+    "remediation": "Add a non-root system user and group (e.g. appuser) and specify USER appuser before CMD in Dockerfile.backend."
+  }
+]

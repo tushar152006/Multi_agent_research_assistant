@@ -46,7 +46,7 @@ class ResearchAgentTestCase(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(results[0].external_id, "arxiv:2501.00001v1")
         self.assertGreaterEqual(results[0].relevance_score, 60)
 
-    async def test_run_falls_back_when_service_fails(self) -> None:
+    async def test_run_returns_empty_when_service_fails(self) -> None:
         arxiv_service = ArxivService()
         arxiv_service.search = AsyncMock(side_effect=httpx.ConnectError("network down"))
         semantic_service = SemanticScholarService()
@@ -68,8 +68,7 @@ class ResearchAgentTestCase(unittest.IsolatedAsyncioTestCase):
             ResearchRequest(query="multi agent science", max_results=2)
         )
 
-        self.assertEqual(len(results), 2)
-        self.assertTrue(all(result.source == "Fallback" for result in results))
+        self.assertEqual(len(results), 0)
 
     async def test_run_merges_and_deduplicates_multiple_sources(self) -> None:
         arxiv_service = ArxivService()

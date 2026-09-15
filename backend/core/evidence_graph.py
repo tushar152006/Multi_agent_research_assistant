@@ -16,6 +16,7 @@ class GraphNodeType(str, Enum):
     METHOD = "method"
     METRIC = "metric"
     THEME = "theme"
+    CLAIM = "claim"
 
 
 class GraphRelation(str, Enum):
@@ -24,6 +25,8 @@ class GraphRelation(str, Enum):
     REPORTS_METRIC = "reports_metric"
     CONTRIBUTES_TO_THEME = "contributes_to_theme"
     CONTRADICTS = "contradicts"
+    SUPPORTS = "supports"
+    GROUNDED_IN = "grounded_in"
 
 
 class GraphNode(BaseModel):
@@ -123,16 +126,19 @@ class EvidenceGraphEngine:
                         label=theme[:35] + ("…" if len(theme) > 35 else ""),
                         node_type=GraphNodeType.THEME,
                     )
+                theme_words = {w for w in re.findall(r"[a-zA-Z0-9]+", theme.lower()) if len(w) > 3}
                 for r in reader_outputs:
-                    paper_id = f"paper_{_sanitize_id(r.title)}"
-                    edges.append(
-                        GraphEdge(
-                            source=paper_id,
-                            target=theme_id,
-                            relation=GraphRelation.CONTRIBUTES_TO_THEME,
-                            label="contributes to",
+                    paper_text = f"{r.title} {r.problem} {r.methodology.approach} {' '.join(r.results.primary_findings)}".lower()
+                    if not theme_words or any(w in paper_text for w in theme_words):
+                        paper_id = f"paper_{_sanitize_id(r.title)}"
+                        edges.append(
+                            GraphEdge(
+                                source=paper_id,
+                                target=theme_id,
+                                relation=GraphRelation.CONTRIBUTES_TO_THEME,
+                                label="contributes to",
+                            )
                         )
-                    )
 
         # 3. Add Contradiction edges
         if tensions:
@@ -150,17 +156,42 @@ class EvidenceGraphEngine:
                         )
                     )
 
+        # 4. Add Grounded Claims (from innovations)
+        if analysis and analysis.innovations:
+            for inn in analysis.innovations[:4]:
+                p_id = f"paper_{_sanitize_id(inn.paper_title)}"
+                claim_id = f"claim_{_sanitize_id(inn.innovation)}"
+                if claim_id not in nodes:
+                    nodes[claim_id] = GraphNode(
+                        id=claim_id,
+                        label=inn.innovation[:35] + ("…" if len(inn.innovation) > 35 else ""),
+                        node_type=GraphNodeType.CLAIM,
+                        properties={"impact": inn.impact},
+                    )
+                if p_id in nodes:
+                    edges.append(
+                        GraphEdge(
+                            source=claim_id,
+                            target=p_id,
+                            relation=GraphRelation.GROUNDED_IN,
+                            label="grounded in",
+                        )
+                    )
+
         # Identify central concepts (nodes with highest in/out degree)
         degrees: dict[str, int] = {}
         for edge in edges:
             degrees[edge.source] = degrees.get(edge.source, 0) + 1
             degrees[edge.target] = degrees.get(edge.target, 0) + 1
 
-        top_concepts = sorted(
-            [n.label for n_id, n in nodes.items() if n.node_type != GraphNodeType.PAPER],
-            key=lambda lbl: degrees.get(lbl, 0),
-            reverse=True,
-        )[:5]
+        top_concepts = [
+            n.label
+            for n in sorted(
+                [n for n in nodes.values() if n.node_type != GraphNodeType.PAPER],
+                key=lambda n: degrees.get(n.id, 0),
+                reverse=True,
+            )
+        ][:5]
 
         # Generate Mermaid Graph Diagram
         mermaid = self._generate_mermaid(nodes, edges)
