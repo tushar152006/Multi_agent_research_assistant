@@ -10,12 +10,14 @@
 [![Next.js 16](https://img.shields.io/badge/Next.js-16.2.1-000000?style=for-the-badge&logo=next.js&logoColor=white)](https://nextjs.org/)
 [![TypeScript 5](https://img.shields.io/badge/TypeScript-5.0+-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Docker Ready](https://img.shields.io/badge/Docker-Enabled-2496ED?style=for-the-badge&logo=docker&logoColor=white)](docker-compose.yml)
-[![Tests Passing](https://img.shields.io/badge/Tests-59%2F59%20Passing-success?style=for-the-badge&logo=pytest&logoColor=white)](#-testing--quality-assurance)
+[![Tests Passing](https://img.shields.io/badge/Tests-69%2F69%20Passing-success?style=for-the-badge&logo=pytest&logoColor=white)](#-testing--quality-assurance)
+[![Security Audited](https://img.shields.io/badge/Security-Audited%20%26%20Remediated-brightgreen?style=for-the-badge&logo=shield)](audit/10_REMEDIATION_REPORT.md)
 [![PRs Welcome](https://img.shields.io/badge/PRs-Welcome-brightgreen.svg?style=for-the-badge)](CONTRIBUTING.md)
 
 <p align="center">
   <a href="#-key-capabilities">Key Features</a> •
   <a href="#-multi-agent-dag-architecture">Architecture</a> •
+  <a href="#-security-architecture--remediation">Security</a> •
   <a href="#-quick-start">Quick Start</a> •
   <a href="#-api--websocket-reference">API Reference</a> •
   <a href="#-testing--quality-assurance">Testing</a> •
@@ -30,21 +32,23 @@
 
 The **Autonomous Multi-Agent Research Assistant** is an end-to-end, full-stack AI platform designed to automate rigorous academic literature reviews, empirical synthesis, and scientific knowledge mapping. 
 
-Rather than relying on linear chains or single-prompt LLM wrappers, the platform executes an asynchronous **Directed Acyclic Graph (DAG)** of **7 cooperating specialized agents**. The system searches academic repositories (arXiv, Semantic Scholar, DuckDuckGo), ingests uploaded PDFs with deterministic SHA-256 chunk grounding, extracts empirical metrics, constructs cross-paper contradiction matrices, validates claims with fuzzy citation auditing, and synthesizes publication-ready reviews compliant with the **PRISMA 2020 systematic review standard**.
+Rather than relying on linear chains or single-prompt LLM wrappers, the platform executes an asynchronous **Directed Acyclic Graph (DAG)** of **specialized cooperating agents**. The system searches academic repositories (arXiv, Semantic Scholar, DuckDuckGo), ingests uploaded PDFs with deterministic SHA-256 chunk grounding, extracts empirical metrics, evaluates corpus sufficiency through an adaptive feedback loop, constructs cross-paper contradiction matrices, validates claims with fuzzy citation auditing, and synthesizes publication-ready reviews compliant with the **PRISMA 2020 systematic review standard**.
 
 ---
 
 ## ✨ Key Capabilities
 
 - **⚡ Async Directed Acyclic Graph (DAG) Engine**: Topological dependency resolution, non-blocking asynchronous execution, cycle detection, automatic exponential backoff retries, and bounded concurrency (`asyncio.Semaphore`).
-- **🤖 7 Autonomous Specialized Agents**: Role-specialized agents for academic discovery, deep paper extraction, citation auditing, contradiction detection, thematic synthesis, multi-criterion critique, and engineering implementation planning.
-- **🔍 Academic Ingestion & Search**: Dual discovery pipeline querying arXiv and live web sources, combined with multi-file PDF drag-and-drop parsing.
+- **🔄 Dynamic Research Sufficiency Loop**: Adaptive feedback evaluation that monitors corpus breadth, evidence density, and research gap coverage, intelligently querying targeted papers when additional depth is required.
+- **🤖 Specialized Autonomous Agents**: Role-specialized agents for academic discovery, deep document extraction, citation auditing, contradiction detection, thematic synthesis, multi-criterion critique, and engineering implementation planning.
+- **🛡️ Source-Grounded Security Architecture**: Multi-tenant BOLA session isolation, strict SSRF defense policies blocking cloud metadata/private IPs, indirect prompt injection neutralization, in-memory sliding-window rate limiting, and safe local Next.js Mermaid bundling.
+- **🔍 Academic Ingestion & Search**: Dual discovery pipeline querying arXiv and live web sources, combined with multi-page bounded PDF parsing offloaded via `asyncio.to_thread`.
 - **🛡️ Strict Citation Grounding**: Deterministic sentence-level SHA-256 chunk hashing and fuzzy Levenshtein sequence matching to prevent hallucinated citations and ungrounded claims.
 - **⚔️ Cross-Paper Contradiction Matrix**: Builds an $N \times N$ empirical tension matrix detecting discrepancies across benchmarks, numerical results, and opposing methodologies.
 - **📊 PRISMA 2020 Review & Evidence Graph**: Generates automated PRISMA 4-stage systematic review flowcharts and typed SciGraph-style interactive evidence networks.
-- **🌊 Real-Time WebSocket Streaming**: Bi-directional event stream transmitting live DAG state transitions (`pending` → `running` → `completed`), progress meters, and token logs.
+- **🌊 Real-Time WebSocket Streaming**: Bi-directional event stream transmitting live DAG state transitions (`pending` → `running` → `completed`), progress meters, token logs, and CSWSH origin security validation.
 - **📑 Academic Export Suite**: 1-click export of publication-ready BibTeX catalogs (`.bib`) and structured Markdown literature reviews.
-- **🎨 Glassmorphic Solar-Prism UI**: Modern Next.js 16 + Tailwind CSS dashboard featuring live agent reasoning logs, interactive tabs, and client-side Mermaid.js visualization.
+- **🎨 Glassmorphic Solar-Prism UI**: Modern Next.js 16 + Tailwind CSS dashboard featuring live agent reasoning logs, interactive tabs, and client-side bundled Mermaid.js visualization.
 
 ---
 
@@ -235,6 +239,8 @@ cp .env.example .env
 | `APP_NAME` | `Multi-Agent Research Assistant` | Application display name |
 | `ENVIRONMENT` | `development` | Runtime environment (`development`, `production`) |
 | `LOG_LEVEL` | `INFO` | Logging verbosity (`DEBUG`, `INFO`, `WARNING`, `ERROR`) |
+| `ALLOWED_ORIGINS` | `http://localhost:3000,...` | Comma-separated or list of allowed CORS & CSWSH origins |
+| `AUTH_REQUIRED` | `false` | Set to `true` to require Bearer tokens or `X-User-ID` |
 | `LLM_PROVIDER` | `groq` | LLM backend engine: `groq`, `heuristic`, `ollama`, or `openai` |
 | `GROQ_API_KEY` | *None (required if groq)* | Free Groq API key from console.groq.com |
 | `GROQ_MODEL` | `openai/gpt-oss-120b` | High-capacity fast reasoning model on Groq |
@@ -248,6 +254,23 @@ cp .env.example .env
 
 ---
 
+## 🛡️ Security Architecture & Invariant Enforcement
+
+This platform has completed a source-grounded security audit and adversarial verification ([`audit/10_REMEDIATION_REPORT.md`](audit/10_REMEDIATION_REPORT.md)). All 10 core security invariants are enforced and tested:
+
+1. **BOLA & Multi-Tenant Session Isolation**: Sessions are isolated per user in `backend/data/sessions/{user_id}/{session_id}.json` with strict alphanumeric path validation. Cross-tenant access, exports, and deletions return HTTP 404.
+2. **Strict SSRF Defense Engine**: Outbound PDF fetching validates IP addresses against RFC1918 private subnets, loopbacks, link-local, and cloud metadata (`169.254.169.254`), with a 4-hop redirect re-validation loop.
+3. **Safe Bundled Mermaid Visualizations**: Dynamic `new Function(...)` CDN evaluation has been replaced by a locally bundled `mermaid` package in Next.js, with `securityLevel: "strict"` and SVG markup sanitization.
+4. **WebSocket CSWSH & CORS Hardening**: WebSocket connections validate the HTTP `Origin` header against permitted domains (rejecting unauthorized origins with code `1008`) and isolate sessions per tenant.
+5. **PDF Resource Exhaustion Protection**: Enforces a 100-page limit and 20MB file cap, offloading CPU-intensive parsing to worker threads via `asyncio.to_thread`.
+6. **Indirect Prompt Injection Neutralization**: Delimiters (`<untrusted_research_data>`) and LLM instruction control tokens are sanitized across all 5 agent prompts.
+7. **In-Memory Sliding-Window Rate Limiting**: Expensive multi-agent DAG requests are protected with 20 requests/minute per client, emitting HTTP 429 with `Retry-After`.
+8. **Container Security**: Non-root system users (`USER appuser` in backend, `USER node` in frontend).
+9. **Defense-in-Depth HTTP Headers**: `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, and `Referrer-Policy: strict-origin-when-cross-origin`.
+10. **Sanitized Production Errors**: Internal stack traces and file paths are suppressed in production mode.
+
+---
+
 ## 🔌 API & WebSocket Reference
 
 ### REST Endpoints
@@ -255,9 +278,10 @@ cp .env.example .env
 | Method | Endpoint | Description |
 |---|---|---|
 | `GET` | `/api/v1/health` | Service health status and uptime |
-| `POST` | `/api/v1/research/start` | Trigger research workflow with query or uploaded papers |
+| `POST` | `/api/v1/research` | Trigger research workflow with query or uploaded papers |
 | `POST` | `/api/v1/research/upload-pdf` | Upload and extract content from research PDF documents |
 | `GET` | `/api/v1/research/{session_id}` | Retrieve complete research session state and artifacts |
+| `DELETE`| `/api/v1/research/{session_id}` | Delete session (scoped strictly to authenticated tenant) |
 | `GET` | `/api/v1/research/{session_id}/export/bibtex` | Download publication-ready BibTeX `.bib` reference catalog |
 | `GET` | `/api/v1/research/{session_id}/export/markdown` | Download complete systematic literature review in Markdown |
 
@@ -265,7 +289,7 @@ cp .env.example .env
 
 Connect via WebSocket to stream live execution progress:
 ```javascript
-const socket = new WebSocket('ws://localhost:8000/ws/research');
+const socket = new WebSocket('ws://localhost:8000/ws/research?user_id=researcher_1');
 
 // Start research workflow
 socket.send(JSON.stringify({
@@ -291,28 +315,31 @@ socket.onmessage = (event) => {
 
 ## 🧪 Testing & Quality Assurance
 
-The backend test suite is designed to run **100% offline** with zero external network or API dependencies:
+The test suite runs **100% offline** with zero external network or API dependencies:
 
 ```bash
-# Run backend test suite
-python -m unittest discover -s backend/tests -p "test_*.py"
+# Run complete backend test suite (69 tests)
+.venv\Scripts\python -m unittest discover -s backend/tests -p "test_*.py"
 ```
 
 ```
-............................................
+.....................................................................
 ----------------------------------------------------------------------
-Ran 44 tests in ~3.8s
+Ran 69 tests in ~65s
 
 OK
 ```
 
 ### Verified Test Suites:
+- **`test_security.py`** (15 tests): BOLA multi-tenancy, SSRF blocking, CSWSH rejection, rate limiting, PDF bounds, prompt injection sanitization.
+- **`test_golden_benchmark.py`**: End-to-end golden verification of PRISMA synthesis, citation grounding precision, and adaptive loop termination.
+- **`test_research_sufficiency.py`**: Evaluation of research breadth, evidence density, and research gap coverage.
 - **`test_dag_engine.py`**: Topological sort, cycle detection, failure isolation, retry policies.
 - **`test_citation_grounding.py`**: Sentence-level chunk hashing, Levenshtein matching, hallucination auditing.
 - **`test_contradiction_matrix.py`**: Pairwise conflict evaluation, metric divergence, tension scoring.
 - **`test_prisma_evidence_graph.py`**: PRISMA 2020 4-stage review criteria, SciGraph typed evidence networks.
 - **`test_academic_exporter.py`**: BibTeX schema formatting, Markdown synthesis export validation.
-- **`test_session_store.py`**: Atomic session persistence, path traversal security constraints.
+- **`test_session_store.py`**: Multi-tenant session persistence, path traversal security constraints.
 - **`test_pdf_upload.py`**: Multipart binary PDF handling and section extraction.
 
 ### Frontend Verification:
