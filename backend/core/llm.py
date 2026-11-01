@@ -72,8 +72,8 @@ class GroqService(LLMService):
     def __init__(
         self,
         api_key: str,
-        model: str = "openai/gpt-oss-120b",
-        timeout: float = 30.0,
+        model: str = "qwen/qwen3.8-27b",
+        timeout: float = 15.0,
         client: httpx.AsyncClient | None = None,
     ) -> None:
         self.api_key = api_key.strip()
@@ -118,7 +118,12 @@ class GroqService(LLMService):
         choices = body.get("choices", [])
         if not choices:
             return ""
-        return str(choices[0].get("message", {}).get("content", "")).strip()
+        message = choices[0].get("message", {})
+        content = message.get("content", "")
+        # Fall back to reasoning tokens if model is a reasoning-first model
+        if not content and "reasoning" in message:
+            content = message.get("reasoning", "")
+        return str(content).strip()
 
 
 def build_llm_service(
@@ -126,7 +131,7 @@ def build_llm_service(
     ollama_base_url: str = "http://localhost:11434",
     ollama_model: str = "llama3.1:latest",
     groq_api_key: str | None = None,
-    groq_model: str = "openai/gpt-oss-120b",
+    groq_model: str = "qwen/qwen3.8-27b",
 ) -> LLMService:
     normalized = (provider or "").strip().lower()
 

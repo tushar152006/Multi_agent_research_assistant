@@ -16,8 +16,13 @@ router = APIRouter(tags=["websocket"])
 
 
 async def _send(ws: WebSocket, event: str, data: dict) -> None:
-    """Send a JSON-encoded event frame to the client."""
-    await ws.send_text(json.dumps({"event": event, "data": data}))
+    """Send a JSON-encoded event frame to the client safely."""
+    try:
+        from starlette.websockets import WebSocketState
+        if ws.client_state == WebSocketState.CONNECTED:
+            await ws.send_text(json.dumps({"event": event, "data": data}))
+    except Exception:
+        pass
 
 
 @router.websocket("/ws/research")
@@ -103,6 +108,17 @@ async def research_websocket(ws: WebSocket) -> None:
                         "index": data.get("index", 1),
                         "total": data.get("total", 1),
                         "title": data.get("title", ""),
+                    },
+                )
+            elif event_name == "adaptive_iteration":
+                it = data.get("iteration", 2)
+                tq = data.get("target_query", "")
+                await _send(
+                    ws,
+                    "agent_start",
+                    {
+                        "agent": "research_agent",
+                        "message": f"Adaptive Loop #{it}: Expanding corpus with '{tq}'…",
                     },
                 )
         except Exception:

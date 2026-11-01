@@ -28,7 +28,7 @@ class Settings(BaseSettings):
 
     semantic_scholar_api_key: str | None = None
     groq_api_key: str | None = None
-    groq_model: str = "openai/gpt-oss-120b"
+    groq_model: str = "qwen/qwen3.8-27b"
     llm_provider: str = "groq"
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "llama3.1:latest"

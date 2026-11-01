@@ -85,8 +85,8 @@ class ContradictionAgent(BaseAgent[Sequence[ReaderResponse], ContradictionMatrix
         )
         try:
             response = await asyncio.wait_for(
-                self.llm_service.generate(prompt, max_tokens=100),
-                timeout=30.0,
+                self.llm_service.generate(prompt, max_tokens=150),
+                timeout=12.0,
             )
             lines = [
                 line.lstrip("- *").strip()
